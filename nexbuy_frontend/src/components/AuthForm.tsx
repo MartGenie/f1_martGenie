@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Image from "next/image";
 import {
   loginWithEmail,
   registerWithEmail,
@@ -124,11 +125,12 @@ export default function AuthForm({ onSuccess }: Props) {
       </div>
 
       <button
-        className="h-12 w-full rounded-lg border border-[#d8d8d8] text-lg font-semibold text-[#2d2d2d] disabled:opacity-60"
+        className="flex h-12 w-full items-center justify-center gap-3 rounded-lg border border-[#d8d8d8] text-lg font-semibold text-[#2d2d2d] disabled:opacity-60"
         disabled={isBusy}
         onClick={handleGoogle}
         type="button"
       >
+        <Image alt="Google" height={20} src="/google.png" width={20} />
         Continue With Google
       </button>
 
