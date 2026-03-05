@@ -48,6 +48,7 @@ async def google_authorize(request: Request, response: Response) -> dict[str, st
         str(request.url_for(callback_route_name)),
         state,
         ["openid", "email", "profile"],
+        extras_params={"prompt": "consent select_account"},
     )
     response.set_cookie(
         CSRF_TOKEN_COOKIE_NAME,
