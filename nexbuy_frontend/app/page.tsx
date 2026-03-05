@@ -29,12 +29,16 @@ export default function Home() {
   const [mode, setMode] = useState<AuthMode>("login");
   const [form, setForm] = useState<FormState>(initialFormState);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Checking saved session...");
   const [errorMessage, setErrorMessage] = useState("");
   const [isBusy, setIsBusy] = useState(false);
 
   useEffect(() => {
     const token = readAccessToken();
+    setAccessToken(token);
+    setIsHydrated(true);
 
     if (!token) {
       setStatusMessage("No active session. Sign in or create an account.");
@@ -88,6 +92,7 @@ export default function Home() {
 
       const token = await loginWithEmail(form.email, form.password);
       saveAccessToken(token);
+      setAccessToken(token);
       await restoreSession(token);
       setForm((current) => ({
         ...current,
@@ -121,12 +126,11 @@ export default function Home() {
 
   function handleLogout() {
     clearAccessToken();
+    setAccessToken(null);
     setCurrentUser(null);
     setStatusMessage("Signed out.");
     setErrorMessage("");
   }
-
-  const accessToken = readAccessToken();
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_right,_rgba(249,115,22,0.22),_transparent_34%),linear-gradient(135deg,_#0f172a_0%,_#111827_45%,_#1f2937_100%)] px-6 py-10 text-slate-100">
@@ -151,7 +155,13 @@ export default function Home() {
             />
             <InfoCard
               label="Token"
-              value={accessToken ? "Stored in localStorage" : "Not stored"}
+              value={
+                !isHydrated
+                  ? "Checking..."
+                  : accessToken
+                    ? "Stored in localStorage"
+                    : "Not stored"
+              }
             />
           </div>
 

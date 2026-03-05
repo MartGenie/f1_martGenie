@@ -15,6 +15,7 @@ from fastapi_users.router.oauth import (
     generate_csrf_token,
     generate_state_token,
 )
+from httpx_oauth.exceptions import GetIdEmailError
 
 from .auth_backend import auth_backend
 from .config import settings
@@ -46,6 +47,7 @@ async def google_authorize(request: Request, response: Response) -> dict[str, st
     authorization_url = await google_oauth_client.get_authorization_url(
         str(request.url_for(callback_route_name)),
         state,
+        ["openid", "email", "profile"],
     )
     response.set_cookie(
         CSRF_TOKEN_COOKIE_NAME,
@@ -109,6 +111,11 @@ async def google_callback(
         error = ErrorCode.ACCESS_TOKEN_DECODE_ERROR
     except jwt.ExpiredSignatureError:
         error = ErrorCode.ACCESS_TOKEN_ALREADY_EXPIRED
+    except GetIdEmailError as exc:
+        if exc.response is not None:
+            print("GetIdEmailError status:", exc.response.status_code)
+            print("GetIdEmailError body:", exc.response.text)
+        error = ErrorCode.OAUTH_NOT_AVAILABLE_EMAIL
     except UserAlreadyExists:
         error = ErrorCode.OAUTH_USER_ALREADY_EXISTS
     except ValueError as exc:
