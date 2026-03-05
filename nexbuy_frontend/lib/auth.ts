@@ -11,7 +11,7 @@ type JwtLoginResponse = {
   token_type: string;
 };
 
-type GoogleAuthorizeResponse = {
+type OAuthAuthorizeResponse = {
   authorization_url: string;
 };
 
@@ -103,13 +103,29 @@ export async function requestGoogleAuthorization() {
   const response = await fetch(`${getApiBaseUrl()}/auth/google/authorize`, {
     credentials: "include",
   });
-  const data = await parseJsonResponse<GoogleAuthorizeResponse>(
+  const data = await parseJsonResponse<OAuthAuthorizeResponse>(
     response,
     "Could not start Google sign-in.",
   );
 
   if (!data.authorization_url) {
     throw new Error("Google authorization URL is missing.");
+  }
+
+  return data.authorization_url;
+}
+
+export async function requestAppleAuthorization() {
+  const response = await fetch(`${getApiBaseUrl()}/auth/apple/authorize`, {
+    credentials: "include",
+  });
+  const data = await parseJsonResponse<OAuthAuthorizeResponse>(
+    response,
+    "Could not start Apple sign-in.",
+  );
+
+  if (!data.authorization_url) {
+    throw new Error("Apple authorization URL is missing.");
   }
 
   return data.authorization_url;

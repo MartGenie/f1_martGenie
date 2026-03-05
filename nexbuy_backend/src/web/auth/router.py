@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from .apple_router import router as apple_router
 from .auth_backend import auth_backend
 from .google_router import router as google_router
 from .schemas import UserCreate, UserRead, UserUpdate
@@ -34,3 +35,4 @@ router.include_router(
     tags=["users"],
 )
 router.include_router(google_router, prefix="/auth/google")
+router.include_router(apple_router, prefix="/auth/apple")

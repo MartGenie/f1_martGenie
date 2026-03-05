@@ -10,6 +10,14 @@ class Settings(BaseSettings):
     google_oauth_frontend_redirect_url: str = "http://localhost:3000/auth/callback"
     google_oauth_client_id: str = ""
     google_oauth_client_secret: str = ""
+    apple_oauth_frontend_redirect_url: str = "http://localhost:3000/auth/callback"
+    apple_oauth_client_id: str = ""
+    apple_oauth_team_id: str = ""
+    apple_oauth_key_id: str = ""
+    apple_oauth_private_key: str = ""
+    apple_oauth_redirect_uri: str = "http://localhost:8000/api/auth/apple/callback"
+    apple_oauth_scope: str = "name email"
+    apple_oauth_response_mode: str = "query"
     oauth_state_secret: str = "change-this-oauth-state-secret"
     oauth_csrf_cookie_secure: bool = False
 
