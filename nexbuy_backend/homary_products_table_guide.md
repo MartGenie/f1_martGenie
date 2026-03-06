@@ -93,6 +93,73 @@
 - 含义：规格参数摘要（键值对）。
 - 示例：`{"Material":"Brass","Style":"Modern"}`
 
+### `specs` 详细说明（重点）
+
+`specs` 是从原始字段 `details` 精简出来的“规格字典”。
+
+原始 `details` 长这样（数组）：
+```json
+[
+  {"key":"Material","value":"Brass","sort":500,...},
+  {"key":"Style","value":"Modern","sort":400,...}
+]
+```
+
+导入后会变成：
+```json
+{
+  "Material": "Brass",
+  "Style": "Modern"
+}
+```
+
+#### 导入规则
+
+1. 来源：只来自 `details` 数组。
+2. 只保留有意义项：`key` 为空或 `value` 为空会被跳过。
+3. 同名 key 去重：如果同一个 key 出现多次，只保留第一次出现的值。
+4. 数量限制：最多保留 30 个键值对（防止单条记录过大）。
+5. 类型统一：统一存成字符串键值（`dict[str, str]`）。
+
+#### 为什么要这样做
+
+1. 比原始 `details` 更小、更快，方便查库展示。
+2. 绝大多数业务只需要“字段名 -> 字段值”，不需要原始 `pn_id/pv_id/sort` 等内部字段。
+3. JSONB 结构灵活，不同类目的规格数量不同也能存。
+
+#### `specs` 里具体会包含哪些信息（真实示例）
+
+下面是当前数据里高频出现的规格项（key -> value 示例）：
+
+1. `Sku` -> `J020524-4-US`
+2. `Warranty` -> `5 Year Limited` / `3 Year Limited`
+3. `Style` -> `Modern` / `Traditional`
+4. `Assembly` -> `No Assembly Required` / `Partially`
+5. `Suggested Number Of People For Installation` -> `2` / `1`
+6. `Shape` -> `Rectangle` / `Oval` / `Square`
+7. `Product Care` -> `Wipe Clean With Damp Cloth, Wipe Dry With Clean Cloth`
+8. `Material` -> `Brass` / `Stainless Steel` / `Crystal`
+9. `Top Material` -> `Engineered Wood` / `Wood`
+10. `Top Color` -> `Walnut` / `Black` / `White`
+11. `Base Material` -> `Engineered Wood` / `Stainless Steel`
+12. `Base Color` -> `Walnut` / `Black` / `White`
+13. `Feature` -> `Handshower Included` / `Waterfall`
+14. `Number Of Drawers` -> `0` / `3` / `6`
+15. `Number Of Shelves` -> `0` / `3` / `4`
+16. `Seats Up To` -> `6` / `8`
+17. `Number Of Chairs` -> `1` / `2` / `4`
+18. `Upholstery Material` -> `PU Leather` / `Velvet`
+19. `Upholstery Color` -> `Warm White` / `Black` / `Gray`
+20. `Leg Material` -> `Metal` / `Stainless Steel`
+21. `Leg Color` -> `Gold` / `Natural`
+22. `Frame Material` -> `Metal` / `Solid Wood`
+23. `Wheels Included` -> `Yes` / `No`
+24. `Plug-in` -> `Yes` / `No`
+25. `Foldable` -> `Yes` / `No`
+26. `Swivel` -> `Yes` / `No`
+27. `Chair Type` -> `Executive Chair` / `Arm Chair`
+28. `Cabinet Feature` -> `With Drawers` / `With Shelves`
+
 ---
 
 ## E) 价格信息（数值优先）
@@ -192,4 +259,3 @@
 - 因为主键是 `sku_id_default`，重复导入同一个 SKU 会触发更新（upsert），不是新增。
 
 ---
-
