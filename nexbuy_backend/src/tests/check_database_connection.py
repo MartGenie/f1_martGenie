@@ -8,7 +8,6 @@ from src.web.auth.config import settings
 
 async def main() -> None:
     database_url = settings.database_url
-    print("DATABASE_URL loaded:", database_url)
 
     engine = create_async_engine(database_url, echo=False)
     try:
