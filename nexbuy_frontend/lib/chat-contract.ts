@@ -29,6 +29,8 @@ export type PlanItem = {
   title: string;
   price: number;
   reason: string;
+  imageUrl?: string | null;
+  productUrl?: string | null;
 };
 
 export type PlanOption = {
@@ -47,4 +49,3 @@ export type StreamEvent =
   | { type: "plan_ready"; plans: PlanOption[] }
   | { type: "done" }
   | { type: "error"; error: string };
-

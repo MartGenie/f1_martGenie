@@ -68,15 +68,23 @@ export function subscribeChatStream(
     }
 
     const stream = new EventSource(url.toString());
+    let completed = false;
     stream.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data) as StreamEvent;
         onEvent(payload);
+        if (payload.type === "done") {
+          completed = true;
+          stream.close();
+        }
       } catch {
         onEvent({ type: "error", error: "Invalid stream event payload." });
       }
     };
     stream.onerror = () => {
+      if (completed) {
+        return;
+      }
       onEvent({ type: "error", error: "Real-time stream disconnected." });
       stream.close();
     };

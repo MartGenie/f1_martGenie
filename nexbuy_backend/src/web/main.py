@@ -7,6 +7,7 @@ from .auth.config import settings
 from .auth.db import engine
 from .auth.models import Base
 from .auth.router import router as auth_router
+from .chat_router import router as chat_router
 
 
 @asynccontextmanager
@@ -25,6 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(auth_router, prefix="/api")
+app.include_router(chat_router, prefix="/api")
 
 
 @app.get("/health", tags=["system"])

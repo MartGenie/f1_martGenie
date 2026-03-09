@@ -31,3 +31,4 @@ class QueryDataResult(BaseModel):
     agent_reply: str = Field(default="")
     filters: QueryFilters | None = None
     products: list[ProductRow] = Field(default_factory=list)
+    debug_logs: list[str] = Field(default_factory=list)

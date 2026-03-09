@@ -1,4 +1,5 @@
 import json
+import time
 from typing import Any
 
 from src.model import ChatMessage, get_llm_client
@@ -122,12 +123,35 @@ def _normalize(parsed: dict[str, Any]) -> UserContentAnalysisResult:
 
 
 async def analyze_user_content(conversation_messages: list[ChatMessage]) -> UserContentAnalysisResult:
+    result, _ = await analyze_user_content_with_debug(conversation_messages)
+    return result
+
+
+async def analyze_user_content_with_debug(
+    conversation_messages: list[ChatMessage],
+) -> tuple[UserContentAnalysisResult, list[str]]:
+    logs: list[str] = []
+    t0 = time.perf_counter()
+    logs.append(f"[user_content_analysis] input messages={len(conversation_messages)}")
+
     llm_client = get_llm_client("glm")
+    logs.append("[user_content_analysis] LLM client initialized")
     messages: list[ChatMessage] = [
         {"role": "system", "content": ANALYSIS_SYSTEM_PROMPT},
         *conversation_messages,
         {"role": "user", "content": build_analysis_user_prompt()},
     ]
+    t_llm = time.perf_counter()
     result = await llm_client.chat(messages=messages, temperature=0.1)
+    logs.append(
+        f"[user_content_analysis] LLM response received in {(time.perf_counter() - t_llm):.2f}s"
+    )
     parsed = _extract_json_object(result.content)
-    return _normalize(parsed)
+    logs.append("[user_content_analysis] JSON parsed")
+    normalized = _normalize(parsed)
+    logs.append(
+        f"[user_content_analysis] normalized: ready={normalized.is_ready}, "
+        f"missing={normalized.missing_fields}, items={len(normalized.target_items)}"
+    )
+    logs.append(f"[user_content_analysis] done in {(time.perf_counter() - t0):.2f}s")
+    return normalized, logs

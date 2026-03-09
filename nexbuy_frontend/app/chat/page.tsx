@@ -25,41 +25,41 @@ function buildFriendlyEvent(event: TimelineEvent): FriendlyEvent {
   if (type.includes("scan") || type.includes("collect")) {
     return {
       title: "正在收集可选商品",
-      detail: "AI 正在对比不同商品，筛掉不符合预算或风格的选项。",
+      detail: event.message,
     };
   }
 
   if (type.includes("price") || type.includes("budget")) {
     return {
       title: "正在核对预算",
-      detail: "AI 正在确认总价是否在你设定的预算范围内。",
+      detail: event.message,
     };
   }
 
   if (type.includes("plan") || type.includes("ready")) {
     return {
       title: "正在整理推荐方案",
-      detail: "AI 正在把候选商品组合成几套可执行的购买方案。",
+      detail: event.message,
     };
   }
 
   if (type.includes("message") || type.includes("response")) {
     return {
       title: "正在生成回复",
-      detail: "AI 正在用更容易理解的方式总结给你。",
+      detail: event.message,
     };
   }
 
   if (type.includes("error")) {
     return {
       title: "流程中断",
-      detail: "本次处理遇到异常，需要你重试或补充需求。",
+      detail: event.message,
     };
   }
 
   return {
     title: "正在处理需求",
-    detail: "AI 正在继续分析你的输入并推进下一步。",
+    detail: event.message,
   };
 }
 
@@ -119,6 +119,8 @@ export default function ChatWorkspacePage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [plans, setPlans] = useState<PlanOption[]>([]);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [status, setStatus] = useState("Preparing workspace...");
   const [error, setError] = useState("");
@@ -223,6 +225,10 @@ export default function ChatWorkspacePage() {
 
         if (eventPayload.type === "plan_ready") {
           setPlans(eventPayload.plans);
+          if (eventPayload.plans.length > 0) {
+            setActivePlanId(eventPayload.plans[0].id);
+            setShowOrderModal(true);
+          }
           setStatus("Plans are ready. Review and pick one.");
           return;
         }
@@ -261,6 +267,24 @@ export default function ChatWorkspacePage() {
     }
   }
 
+  function handleCancel() {
+    unsubscribeRef.current?.();
+    unsubscribeRef.current = null;
+    setIsSending(false);
+    setStreamText("");
+    streamTextRef.current = "";
+    setStatus("Search canceled. You can send a new request.");
+    setTimeline((current) => [
+      {
+        id: `t-${crypto.randomUUID()}`,
+        type: "error",
+        message: "User canceled this run.",
+        createdAt: new Date().toISOString(),
+      },
+      ...current,
+    ]);
+  }
+
   const renderedMessages = streamText
     ? [
         ...messages,
@@ -276,6 +300,9 @@ export default function ChatWorkspacePage() {
   const hasUserMessage = messages.some((message) => message.role === "user");
   const stepStates = getStepStates(hasUserMessage, timeline.length > 0, plans.length > 0, isSending);
   const timelinePreview = timeline.slice(0, 8);
+  const activePlan =
+    plans.find((plan) => plan.id === activePlanId) ??
+    (plans.length > 0 ? plans[0] : null);
 
   return (
     <main className="min-h-screen bg-[#f8f8f6] px-4 py-5 text-[#1f2937] md:px-6">
@@ -335,6 +362,15 @@ export default function ChatWorkspacePage() {
             >
               {isSending ? "Running..." : "Send"}
             </button>
+            {isSending ? (
+              <button
+                className="h-[56px] rounded-2xl border border-rose-300 bg-rose-50 px-4 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+                onClick={handleCancel}
+                type="button"
+              >
+                Cancel
+              </button>
+            ) : null}
           </form>
           {error ? <p className="mt-2 text-sm text-rose-600">{error}</p> : null}
         </section>
@@ -434,6 +470,63 @@ export default function ChatWorkspacePage() {
           </div>
         </aside>
       </div>
+      {showOrderModal && activePlan ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[85vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl md:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Order Preview</p>
+                <h3 className="mt-1 text-xl font-semibold text-slate-900">{activePlan.title}</h3>
+                <p className="mt-1 text-sm text-slate-600">{activePlan.summary}</p>
+                <p className="mt-2 text-sm font-medium text-slate-800">
+                  Total: ${activePlan.totalPrice.toLocaleString()}
+                </p>
+              </div>
+              <button
+                className="rounded-full border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-100"
+                onClick={() => setShowOrderModal(false)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {activePlan.items.map((item) => (
+                <article className="rounded-2xl border border-slate-200 bg-slate-50 p-3" key={item.sku}>
+                  {item.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      alt={item.title}
+                      className="h-44 w-full rounded-xl border border-slate-200 object-cover"
+                      src={item.imageUrl}
+                    />
+                  ) : (
+                    <div className="flex h-44 w-full items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white text-xs text-slate-400">
+                      No image
+                    </div>
+                  )}
+                  <h4 className="mt-3 text-sm font-semibold text-slate-900">{item.title}</h4>
+                  <p className="mt-1 text-xs text-slate-600">{item.reason}</p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-slate-900">${item.price.toLocaleString()}</p>
+                    {item.productUrl ? (
+                      <a
+                        className="text-xs font-medium text-[#2f6fa3] hover:underline"
+                        href={item.productUrl}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        View product
+                      </a>
+                    ) : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
