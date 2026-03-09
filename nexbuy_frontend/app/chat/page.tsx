@@ -4,8 +4,10 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { clearAccessToken, fetchCurrentUser, readAccessToken } from "@/lib/auth";
 import {
+  createMockOrder,
   createChatSession,
   type ChatMessage,
+  type MockOrderResponse,
   type PlanOption,
   sendChatMessage,
   subscribeChatStream,
@@ -68,6 +70,9 @@ export default function ChatWorkspacePage() {
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [plans, setPlans] = useState<PlanOption[]>([]);
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
+  const [showOrderConfirm, setShowOrderConfirm] = useState(false);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [orderResult, setOrderResult] = useState<MockOrderResponse | null>(null);
   const [prompt, setPrompt] = useState("");
   const [status, setStatus] = useState("Preparing workspace...");
   const [error, setError] = useState("");
@@ -229,6 +234,36 @@ export default function ChatWorkspacePage() {
       },
       ...current,
     ]);
+  }
+
+  async function handleConfirmOrder() {
+    if (!sessionId || !activePlan) {
+      return;
+    }
+    setIsPlacingOrder(true);
+    setError("");
+    try {
+      const result = await createMockOrder({
+        sessionId,
+        planId: activePlan.id,
+        items: activePlan.items.map((item) => ({
+          sku: item.sku,
+          title: item.title,
+          price: item.price,
+          quantity: 1,
+        })),
+        paymentMethod: "card",
+        shippingAddress: "Mock address",
+      });
+      setOrderResult(result);
+      setShowOrderConfirm(false);
+      setStatus("Order placed (mock).");
+    } catch (placeError) {
+      const message = placeError instanceof Error ? placeError.message : "Failed to place order.";
+      setError(message);
+    } finally {
+      setIsPlacingOrder(false);
+    }
   }
 
   const renderedMessages = streamText
@@ -407,6 +442,13 @@ export default function ChatWorkspacePage() {
                           Total: ${activePlan.totalPrice.toLocaleString()} | Confidence:{" "}
                           {Math.round(activePlan.confidence * 100)}%
                         </p>
+                        <button
+                          className="mt-3 rounded-xl bg-[#2f6fa3] px-3 py-2 text-xs font-semibold text-white hover:bg-[#285f8d]"
+                          onClick={() => setShowOrderConfirm(true)}
+                          type="button"
+                        >
+                          Place order
+                        </button>
                       </article>
                       <div className="grid gap-2">
                         {activePlan.items.map((item) => (
@@ -444,8 +486,60 @@ export default function ChatWorkspacePage() {
               )}
             </div>
           </div>
+          <div className="mt-4 rounded-2xl border border-[#dfd8cb] bg-[#f8f5ef] p-3">
+            <h3 className="text-sm font-semibold text-[#6d5d49]">Order status</h3>
+            {orderResult ? (
+              <div className="mt-2 space-y-1 text-xs text-slate-700">
+                <p>Order ID: {orderResult.order_id}</p>
+                <p>Tracking: {orderResult.tracking_number}</p>
+                <p>Carrier: {orderResult.carrier}</p>
+                <p>ETA: {orderResult.estimated_delivery_date}</p>
+                <p>Total: ${orderResult.total_amount.toLocaleString()} {orderResult.currency}</p>
+                <p>Status: {orderResult.order_status} / {orderResult.payment_status}</p>
+                <p>{orderResult.warehouse_note}</p>
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-slate-500">No order placed yet.</p>
+            )}
+          </div>
         </aside>
       </div>
+      {showOrderConfirm && activePlan ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5">
+            <h3 className="text-lg font-semibold text-slate-900">Confirm order</h3>
+            <p className="mt-1 text-sm text-slate-600">{activePlan.title}</p>
+            <div className="mt-4 space-y-2">
+              {activePlan.items.map((item) => (
+                <div className="flex items-center justify-between rounded-lg border border-slate-200 p-2" key={item.sku}>
+                  <p className="text-sm text-slate-800">{item.title}</p>
+                  <p className="text-sm font-semibold text-slate-900">${item.price.toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-sm font-semibold text-slate-900">
+              Total: ${activePlan.totalPrice.toLocaleString()}
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                onClick={() => setShowOrderConfirm(false)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-lg bg-[#2f6fa3] px-3 py-2 text-sm font-semibold text-white disabled:bg-[#9cb6cd]"
+                disabled={isPlacingOrder}
+                onClick={handleConfirmOrder}
+                type="button"
+              >
+                {isPlacingOrder ? "Paying..." : "Confirm payment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

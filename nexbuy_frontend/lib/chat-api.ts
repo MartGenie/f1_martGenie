@@ -1,5 +1,12 @@
 import { getApiBaseUrl, readAccessToken } from "@/lib/auth";
-import type { ChatMessage, PlanOption, StreamEvent, TimelineEvent } from "@/lib/chat-contract";
+import type {
+  ChatMessage,
+  MockOrderResponse,
+  OrderItemPayload,
+  PlanOption,
+  StreamEvent,
+  TimelineEvent,
+} from "@/lib/chat-contract";
 
 type SessionResponse = { session_id: string };
 type SendMessageResponse = { message_id: string; task_id: string; status: string };
@@ -93,6 +100,31 @@ export function subscribeChatStream(
   }
 
   return runMockStream(onEvent);
+}
+
+export async function createMockOrder(payload: {
+  sessionId: string;
+  planId: string;
+  items: OrderItemPayload[];
+  paymentMethod?: string;
+  shippingAddress?: string;
+}): Promise<MockOrderResponse> {
+  const response = await fetch(`${getApiBaseUrl()}/chat/orders/mock`, {
+    method: "POST",
+    headers: {
+      ...buildAuthHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      session_id: payload.sessionId,
+      plan_id: payload.planId,
+      items: payload.items,
+      payment_method: payload.paymentMethod ?? "card",
+      shipping_address: payload.shippingAddress ?? "N/A",
+    }),
+  });
+
+  return parseJsonResponse<MockOrderResponse>(response, "Could not create order.");
 }
 
 function runMockStream(onEvent: StreamHandler): () => void {
@@ -253,4 +285,11 @@ function readErrorMessage(payload: unknown, fallbackMessage: string) {
   return fallbackMessage;
 }
 
-export type { ChatMessage, PlanOption, StreamEvent, TimelineEvent };
+export type {
+  ChatMessage,
+  MockOrderResponse,
+  OrderItemPayload,
+  PlanOption,
+  StreamEvent,
+  TimelineEvent,
+};

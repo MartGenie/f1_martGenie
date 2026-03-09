@@ -2,6 +2,7 @@ import asyncio
 import json
 import re
 from datetime import datetime, timezone
+from datetime import timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -128,6 +129,35 @@ class SessionDumpResponse(BaseModel):
     messages: list[dict[str, Any]]
     timeline: list[dict[str, Any]]
     plans: list[dict[str, Any]]
+
+
+class OrderItemIn(BaseModel):
+    sku: str
+    title: str
+    price: float
+    quantity: int = 1
+
+
+class CreateMockOrderIn(BaseModel):
+    session_id: str
+    plan_id: str
+    items: list[OrderItemIn]
+    payment_method: str = "card"
+    shipping_address: str = "N/A"
+
+
+class CreateMockOrderOut(BaseModel):
+    order_id: str
+    order_status: str
+    payment_status: str
+    total_amount: float
+    currency: str
+    tracking_number: str
+    carrier: str
+    estimated_delivery_date: str
+    warehouse_note: str
+    support_contact: str
+    created_at: str
 
 
 _SESSIONS: dict[str, dict[str, Any]] = {}
@@ -347,3 +377,30 @@ async def stream_session(session_id: str, task_id: str = Query(...)) -> Streamin
             yield _sse({"type": "done"})
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@router.post("/orders/mock", response_model=CreateMockOrderOut)
+async def create_mock_order(payload: CreateMockOrderIn) -> CreateMockOrderOut:
+    if payload.session_id not in _SESSIONS:
+        raise HTTPException(status_code=404, detail="Chat session not found.")
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="Order items are required.")
+
+    total_amount = round(sum(item.price * max(item.quantity, 1) for item in payload.items), 2)
+    now = datetime.now(timezone.utc)
+    eta = (now + timedelta(days=5)).replace(microsecond=0)
+    eta_str = eta.date().isoformat()
+
+    return CreateMockOrderOut(
+        order_id=f"ORD-{uuid4().hex[:10].upper()}",
+        order_status="confirmed",
+        payment_status="paid",
+        total_amount=total_amount,
+        currency="USD",
+        tracking_number=f"TRK{uuid4().hex[:12].upper()}",
+        carrier="UPS",
+        estimated_delivery_date=eta_str,
+        warehouse_note="Packed and waiting for carrier pickup.",
+        support_contact="support@nexbuy.example",
+        created_at=_now_iso(),
+    )

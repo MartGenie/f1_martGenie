@@ -50,3 +50,24 @@ export type StreamEvent =
   | { type: "plan_ready"; plans: PlanOption[] }
   | { type: "done" }
   | { type: "error"; error: string };
+
+export type OrderItemPayload = {
+  sku: string;
+  title: string;
+  price: number;
+  quantity: number;
+};
+
+export type MockOrderResponse = {
+  order_id: string;
+  order_status: string;
+  payment_status: string;
+  total_amount: number;
+  currency: string;
+  tracking_number: string;
+  carrier: string;
+  estimated_delivery_date: string;
+  warehouse_note: string;
+  support_contact: string;
+  created_at: string;
+};
