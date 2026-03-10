@@ -36,6 +36,34 @@ export type NegotiationSession = {
   updated_at: string;
 };
 
+export type BuyerAgentTurn = {
+  round_index: number;
+  action: "offer" | "accept_seller_price" | "walk_away";
+  buyer_offer?: number | null;
+  buyer_message: string;
+  rationale: string;
+  llm_decision_verified?: boolean;
+  llm_verification_note?: string | null;
+  seller_turn?: NegotiationTurn | null;
+  created_at: string;
+};
+
+export type BuyerAgentRunResult = {
+  run_id: string;
+  user_id: string;
+  sku_id_default: string;
+  target_price: number;
+  max_acceptable_price: number;
+  max_rounds: number;
+  style: "balanced";
+  outcome: "accepted" | "walked_away" | "seller_closed" | "max_rounds_reached";
+  final_price?: number | null;
+  summary: string;
+  seller_session: NegotiationSession;
+  turns: BuyerAgentTurn[];
+  created_at: string;
+};
+
 function buildAuthHeaders(): Record<string, string> {
   const token = readAccessToken();
   if (!token) {
@@ -116,4 +144,106 @@ export async function fetchNegotiationSession(sessionId: string): Promise<Negoti
   });
 
   return parseJsonResponse<NegotiationSession>(response, "Could not load negotiation session.");
+}
+
+export async function runBuyerAgentNegotiation(payload: {
+  skuIdDefault: string;
+  targetPrice: number;
+  maxAcceptablePrice: number;
+}): Promise<BuyerAgentRunResult> {
+  const response = await fetch(`${getApiBaseUrl()}/agent-negotiation/run`, {
+    method: "POST",
+    headers: {
+      ...buildAuthHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      sku_id_default: payload.skuIdDefault,
+      target_price: payload.targetPrice,
+      max_acceptable_price: payload.maxAcceptablePrice,
+    }),
+  });
+
+  return parseJsonResponse<BuyerAgentRunResult>(response, "Could not run buyer agent negotiation.");
+}
+
+export type BuyerAgentStreamEvent =
+  | {
+      type: "session_started";
+      run_id: string;
+      seller_session: NegotiationSession;
+      target_price: number;
+      max_acceptable_price: number;
+      max_rounds: number;
+    }
+  | { type: "thinking"; phase: "buyer_decision" | "seller_response"; round_index: number; message: string }
+  | { type: "buyer_turn"; turn: BuyerAgentTurn }
+  | { type: "seller_turn"; turn: NegotiationTurn }
+  | { type: "done"; result: BuyerAgentRunResult }
+  | { type: "error"; error: string };
+
+export async function streamBuyerAgentNegotiation(
+  payload: {
+    skuIdDefault: string;
+    targetPrice: number;
+    maxAcceptablePrice: number;
+  },
+  onEvent: (event: BuyerAgentStreamEvent) => void,
+): Promise<void> {
+  const response = await fetch(`${getApiBaseUrl()}/agent-negotiation/run/stream`, {
+    method: "POST",
+    headers: {
+      ...buildAuthHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      sku_id_default: payload.skuIdDefault,
+      target_price: payload.targetPrice,
+      max_acceptable_price: payload.maxAcceptablePrice,
+    }),
+  });
+
+  if (!response.ok) {
+    const message = await parseJsonResponse<{ detail?: string }>(
+      response,
+      "Could not start buyer agent negotiation stream.",
+    ).catch((error: Error) => {
+      throw error;
+    });
+    throw new Error(message.detail ?? "Could not start buyer agent negotiation stream.");
+  }
+
+  if (!response.body) {
+    throw new Error("Streaming response body is missing.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+
+    let boundaryIndex = buffer.indexOf("\n\n");
+    while (boundaryIndex !== -1) {
+      const chunk = buffer.slice(0, boundaryIndex);
+      buffer = buffer.slice(boundaryIndex + 2);
+
+      for (const line of chunk.split("\n")) {
+        if (!line.startsWith("data: ")) {
+          continue;
+        }
+        const payloadText = line.slice(6);
+        const parsed = JSON.parse(payloadText) as BuyerAgentStreamEvent;
+        onEvent(parsed);
+      }
+
+      boundaryIndex = buffer.indexOf("\n\n");
+    }
+
+    if (done) {
+      break;
+    }
+  }
 }

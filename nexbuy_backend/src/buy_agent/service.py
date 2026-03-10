@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+from typing import Any, AsyncIterator
 from uuid import uuid4
 
-from src.sell_agent.schema import NegotiationOfferIn
+from src.sell_agent.schema import NegotiationOfferIn, NegotiationTurn
 from src.sell_agent.service import create_negotiation_session, submit_buyer_offer
 
+from .llm_decider import BuyerLLMDecision, propose_buyer_decision
 from .policy import (
     MAX_ROUNDS,
     BuyerConstraints,
     BuyerDecision,
     choose_opening_offer,
     decide_next_action,
-    derive_max_acceptable_price,
 )
 from .schema import BuyerAgentRunResult, BuyerAgentTurn, BuyerOutcome
 
@@ -62,7 +63,128 @@ def _build_summary(outcome: str, final_price: float | None, constraints: BuyerCo
     return "The buyer agent used all available rounds without reaching a final agreement."
 
 
-async def run_buyer_negotiation(*, user_id: str, sku_id_default: str, target_price: float) -> BuyerAgentRunResult:
+def _serialize_seller_turn(turn: NegotiationTurn) -> dict[str, Any]:
+    return turn.model_dump()
+
+
+def _serialize_buyer_turn(turn: BuyerAgentTurn) -> dict[str, Any]:
+    return turn.model_dump()
+
+
+def _transcript_summary(turns: list[BuyerAgentTurn]) -> str:
+    if not turns:
+        return "No prior turns."
+    snippets: list[str] = []
+    for turn in turns[-3:]:
+        seller_part = (
+            f"seller_decision={turn.seller_turn.seller_decision}, seller_price={turn.seller_turn.seller_counter_price}"
+            if turn.seller_turn is not None
+            else "seller_decision=None"
+        )
+        snippets.append(
+            f"round={turn.round_index}, buyer_action={turn.action}, buyer_offer={turn.buyer_offer}, {seller_part}"
+        )
+    return " | ".join(snippets)
+
+
+def _normalize_decision(decision: BuyerDecision, *, round_index: int) -> BuyerDecision:
+    rationale = decision.rationale.strip() or "Use a controlled buyer-side move based on the current negotiation state."
+    return BuyerDecision(
+        action=decision.action,
+        buyer_offer=decision.buyer_offer,
+        rationale=rationale,
+    )
+
+
+def _validate_llm_decision(
+    llm_decision: BuyerLLMDecision,
+    *,
+    constraints: BuyerConstraints,
+    seller_turn: NegotiationTurn | None,
+) -> tuple[bool, str | None]:
+    if llm_decision.action not in {"offer", "accept_seller_price", "walk_away"}:
+        return False, f"Unsupported action: {llm_decision.action}"
+
+    if llm_decision.action == "walk_away":
+        return True, None
+
+    if llm_decision.buyer_offer is None:
+        return False, "buyer_offer is required for offer/accept decisions."
+
+    if llm_decision.buyer_offer <= 0:
+        return False, "buyer_offer must be positive."
+
+    if llm_decision.buyer_offer > constraints.max_acceptable_price:
+        return False, "buyer_offer exceeds max_acceptable_price."
+
+    if llm_decision.action == "accept_seller_price":
+        seller_price = float(
+            (seller_turn.seller_counter_price if seller_turn is not None else None)
+            or (seller_turn.current_target_price if seller_turn is not None else 0)
+            or 0
+        )
+        if seller_turn is None:
+            return False, "Cannot accept seller price without a seller turn."
+        if seller_price > constraints.max_acceptable_price:
+            return False, "Seller price is above max_acceptable_price."
+        if abs(llm_decision.buyer_offer - seller_price) > 0.01:
+            return False, "buyer_offer must match seller price when accepting."
+
+    return True, None
+
+
+async def _choose_llm_backed_decision(
+    *,
+    constraints: BuyerConstraints,
+    seller_session,
+    transcript: list[BuyerAgentTurn],
+    round_index: int,
+    seller_turn: NegotiationTurn | None,
+) -> tuple[BuyerDecision, str, bool, str | None]:
+    fallback = choose_opening_offer(constraints) if seller_turn is None else decide_next_action(
+        constraints,
+        seller_turn=seller_turn,
+        completed_rounds=round_index - 1,
+    )
+    fallback = _normalize_decision(fallback, round_index=round_index)
+    fallback_message = _build_buyer_message(fallback, round_index=round_index)
+
+    try:
+        proposal = await propose_buyer_decision(
+            sku_id_default=seller_session.product.sku_id_default,
+            product_title=seller_session.product.title,
+            list_price=float(seller_session.product.sale_price or 0),
+            target_price=constraints.target_price,
+            max_acceptable_price=constraints.max_acceptable_price,
+            round_index=round_index,
+            max_rounds=constraints.max_rounds,
+            seller_turn=seller_turn,
+            transcript_summary=_transcript_summary(transcript),
+        )
+        ok, reason = _validate_llm_decision(proposal, constraints=constraints, seller_turn=seller_turn)
+        if not ok:
+            return fallback, fallback_message, False, reason or "LLM decision failed validation."
+        return (
+            BuyerDecision(
+                action=proposal.action,  # type: ignore[arg-type]
+                buyer_offer=round(proposal.buyer_offer, 2) if proposal.buyer_offer is not None else None,
+                rationale=proposal.rationale.strip() or fallback.rationale,
+            ),
+            proposal.buyer_message.strip() or fallback_message,
+            True,
+            None,
+        )
+    except Exception as exc:
+        return fallback, fallback_message, False, f"LLM buyer decision failed: {exc}"
+
+
+async def run_buyer_negotiation(
+    *,
+    user_id: str,
+    sku_id_default: str,
+    target_price: float,
+    max_acceptable_price: float,
+) -> BuyerAgentRunResult:
     seller_session = await create_negotiation_session(
         user_id=user_id,
         sku_id_default=sku_id_default,
@@ -71,7 +193,7 @@ async def run_buyer_negotiation(*, user_id: str, sku_id_default: str, target_pri
 
     constraints = BuyerConstraints(
         target_price=round(target_price, 2),
-        max_acceptable_price=derive_max_acceptable_price(target_price, float(seller_session.product.sale_price or 0)),
+        max_acceptable_price=round(min(max_acceptable_price, float(seller_session.product.sale_price or 0)), 2),
         list_price=float(seller_session.product.sale_price or 0),
         max_rounds=MAX_ROUNDS,
     )
@@ -80,10 +202,15 @@ async def run_buyer_negotiation(*, user_id: str, sku_id_default: str, target_pri
     final_price: float | None = None
     outcome: BuyerOutcome = "max_rounds_reached"
 
-    decision = choose_opening_offer(constraints)
-
     for round_index in range(1, MAX_ROUNDS + 1):
-        buyer_message = _build_buyer_message(decision, round_index=round_index)
+        previous_seller_turn = transcript[-1].seller_turn if transcript else None
+        decision, buyer_message, llm_decision_verified, llm_verification_note = await _choose_llm_backed_decision(
+            constraints=constraints,
+            seller_session=seller_session,
+            transcript=transcript,
+            round_index=round_index,
+            seller_turn=previous_seller_turn,
+        )
         if decision.action == "walk_away":
             transcript.append(
                 BuyerAgentTurn(
@@ -92,6 +219,8 @@ async def run_buyer_negotiation(*, user_id: str, sku_id_default: str, target_pri
                     buyer_offer=None,
                     buyer_message=buyer_message,
                     rationale=decision.rationale,
+                    llm_decision_verified=llm_decision_verified,
+                    llm_verification_note=llm_verification_note,
                     seller_turn=None,
                 )
             )
@@ -107,12 +236,14 @@ async def run_buyer_negotiation(*, user_id: str, sku_id_default: str, target_pri
         )
 
         transcript.append(
-                BuyerAgentTurn(
-                    round_index=round_index,
-                    action=decision.action,
-                    buyer_offer=decision.buyer_offer,
-                    buyer_message=buyer_message,
-                    rationale=decision.rationale,
+            BuyerAgentTurn(
+                round_index=round_index,
+                action=decision.action,
+                buyer_offer=decision.buyer_offer,
+                buyer_message=buyer_message,
+                rationale=decision.rationale,
+                llm_decision_verified=llm_decision_verified,
+                llm_verification_note=llm_verification_note,
                 seller_turn=seller_turn,
             )
         )
@@ -148,3 +279,125 @@ async def run_buyer_negotiation(*, user_id: str, sku_id_default: str, target_pri
         seller_session=seller_session,
         turns=transcript,
     )
+
+
+async def stream_buyer_negotiation(
+    *,
+    user_id: str,
+    sku_id_default: str,
+    target_price: float,
+    max_acceptable_price: float,
+) -> AsyncIterator[dict[str, Any]]:
+    seller_session = await create_negotiation_session(
+        user_id=user_id,
+        sku_id_default=sku_id_default,
+        max_rounds=MAX_ROUNDS,
+    )
+
+    constraints = BuyerConstraints(
+        target_price=round(target_price, 2),
+        max_acceptable_price=round(min(max_acceptable_price, float(seller_session.product.sale_price or 0)), 2),
+        list_price=float(seller_session.product.sale_price or 0),
+        max_rounds=MAX_ROUNDS,
+    )
+
+    transcript: list[BuyerAgentTurn] = []
+    final_price: float | None = None
+    outcome: BuyerOutcome = "max_rounds_reached"
+    run_id = _new_run_id()
+
+    yield {
+        "type": "session_started",
+        "run_id": run_id,
+        "seller_session": seller_session.model_dump(),
+        "target_price": constraints.target_price,
+        "max_acceptable_price": constraints.max_acceptable_price,
+        "max_rounds": constraints.max_rounds,
+    }
+
+    for round_index in range(1, MAX_ROUNDS + 1):
+        previous_seller_turn = transcript[-1].seller_turn if transcript else None
+        yield {
+            "type": "thinking",
+            "phase": "buyer_decision",
+            "round_index": round_index,
+            "message": f"Buyer agent is planning round {round_index}.",
+        }
+        decision, buyer_message, llm_decision_verified, llm_verification_note = await _choose_llm_backed_decision(
+            constraints=constraints,
+            seller_session=seller_session,
+            transcript=transcript,
+            round_index=round_index,
+            seller_turn=previous_seller_turn,
+        )
+        if decision.action == "walk_away":
+            buyer_turn = BuyerAgentTurn(
+                round_index=round_index,
+                action="walk_away",
+                buyer_offer=None,
+                buyer_message=buyer_message,
+                rationale=decision.rationale,
+                llm_decision_verified=llm_decision_verified,
+                llm_verification_note=llm_verification_note,
+                seller_turn=None,
+            )
+            transcript.append(buyer_turn)
+            yield {"type": "buyer_turn", "turn": _serialize_buyer_turn(buyer_turn)}
+            outcome = "walked_away"
+            break
+
+        buyer_turn = BuyerAgentTurn(
+            round_index=round_index,
+            action=decision.action,
+            buyer_offer=decision.buyer_offer,
+            buyer_message=buyer_message,
+            rationale=decision.rationale,
+            llm_decision_verified=llm_decision_verified,
+            llm_verification_note=llm_verification_note,
+            seller_turn=None,
+        )
+        yield {"type": "buyer_turn", "turn": _serialize_buyer_turn(buyer_turn)}
+
+        yield {
+            "type": "thinking",
+            "phase": "seller_response",
+            "round_index": round_index,
+            "message": f"Seller agent is evaluating round {round_index}.",
+        }
+        seller_turn = await submit_buyer_offer(
+            seller_session,
+            NegotiationOfferIn(
+                buyer_offer=decision.buyer_offer,
+                buyer_message=buyer_message,
+            ),
+        )
+        buyer_turn.seller_turn = seller_turn
+        transcript.append(buyer_turn)
+        yield {"type": "seller_turn", "turn": _serialize_seller_turn(seller_turn)}
+
+        if seller_turn.seller_decision == "accept":
+            final_price = float(seller_turn.seller_counter_price or decision.buyer_offer or 0)
+            outcome = "accepted"
+            break
+
+        if seller_session.closed:
+            outcome = "seller_closed"
+            break
+
+    if outcome == "max_rounds_reached" and seller_session.accepted_price is not None:
+        outcome = "accepted"
+        final_price = float(seller_session.accepted_price)
+
+    result = BuyerAgentRunResult(
+        run_id=run_id,
+        user_id=user_id,
+        sku_id_default=sku_id_default,
+        target_price=constraints.target_price,
+        max_acceptable_price=constraints.max_acceptable_price,
+        outcome=outcome,
+        final_price=final_price,
+        summary=_build_summary(outcome, final_price, constraints),
+        seller_session=seller_session,
+        turns=transcript,
+    )
+    yield {"type": "done", "result": result.model_dump()}

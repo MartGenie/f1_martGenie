@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from src.sell_agent.schema import NegotiationSession, NegotiationTurn
 
@@ -20,6 +20,13 @@ def now_iso() -> str:
 class BuyerAgentRunIn(BaseModel):
     sku_id_default: str
     target_price: float = Field(gt=0)
+    max_acceptable_price: float = Field(gt=0)
+
+    @model_validator(mode="after")
+    def validate_price_range(self) -> "BuyerAgentRunIn":
+        if self.max_acceptable_price < self.target_price:
+            raise ValueError("max_acceptable_price must be greater than or equal to target_price.")
+        return self
 
 
 class BuyerAgentTurn(BaseModel):
@@ -28,6 +35,8 @@ class BuyerAgentTurn(BaseModel):
     buyer_offer: float | None = None
     buyer_message: str
     rationale: str
+    llm_decision_verified: bool = True
+    llm_verification_note: str | None = None
     seller_turn: NegotiationTurn | None = None
     created_at: str = Field(default_factory=now_iso)
 

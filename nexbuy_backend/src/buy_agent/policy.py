@@ -25,9 +25,7 @@ class BuyerDecision:
 
 
 def derive_max_acceptable_price(target_price: float, list_price: float) -> float:
-    # Allow a modest premium over target so the buyer agent can still close realistic deals.
-    premium_cap = max(target_price * 1.12, target_price + 40.0)
-    return round(min(list_price, premium_cap), 2)
+    return round(min(list_price, target_price), 2)
 
 
 def choose_opening_offer(constraints: BuyerConstraints) -> BuyerDecision:
