@@ -87,9 +87,29 @@ export default function ChatWorkspacePage() {
   const [status, setStatus] = useState("Preparing workspace...");
   const [error, setError] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [runElapsedSec, setRunElapsedSec] = useState(0);
   const [streamText, setStreamText] = useState("");
   const streamTextRef = useRef("");
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const runStartRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isSending) {
+      setRunElapsedSec(0);
+      runStartRef.current = null;
+      return;
+    }
+    runStartRef.current = Date.now();
+    setRunElapsedSec(0);
+    const timer = window.setInterval(() => {
+      if (!runStartRef.current) {
+        return;
+      }
+      const seconds = Math.floor((Date.now() - runStartRef.current) / 1000);
+      setRunElapsedSec(seconds);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [isSending]);
 
   useEffect(() => {
     let unmounted = false;
@@ -397,7 +417,12 @@ export default function ChatWorkspacePage() {
                   <p className="mb-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
                     {message.role === "user" ? "You" : "AI"}
                   </p>
-                  <p>{message.content}</p>
+                  <p>
+                    {message.content}
+                    {message.id === "assistant-draft" && isSending ? (
+                      <span className="ml-2 text-xs text-slate-400">({runElapsedSec}s)</span>
+                    ) : null}
+                  </p>
                 </article>
               ))
             )}
