@@ -51,6 +51,112 @@ def _build_final_confirmation(session: NegotiationSession, final_price: float, v
     }
 
 
+def _build_reason_summary(session: NegotiationSession, turn: NegotiationTurn) -> str:
+    product_title = session.product.title or "this item"
+    list_price = float(session.product.sale_price or 0)
+    inventory = int(session.product.mock_inventory or 0)
+    urgency = str(session.product.mock_urgency_status or "NORMAL").upper()
+    min_expected = float(turn.min_expected_price or 0)
+    current_target = float(turn.current_target_price or 0)
+    counter_price = float(turn.seller_counter_price or current_target or min_expected)
+    buyer_offer = float(turn.buyer_offer) if turn.buyer_offer is not None else None
+
+    reasons: list[str] = []
+
+    if turn.seller_decision == "need_offer":
+        reasons.append(
+            f"The seller needs a concrete offer for {product_title} before confirming any concession."
+        )
+    elif turn.seller_decision == "accept":
+        if buyer_offer is not None and buyer_offer >= current_target:
+            reasons.append(
+                f"The buyer offer is already within the seller's workable closing range for {product_title}."
+            )
+        reasons.append(
+            f"The agreed price of ${counter_price:.2f} is acceptable without further negotiation."
+        )
+    elif turn.seller_decision == "counter":
+        if buyer_offer is not None:
+            reasons.append(
+                f"The buyer offer of ${buyer_offer:.2f} is serious, but still below the seller's preferred closing level."
+            )
+        reasons.append(
+            f"The counter at ${counter_price:.2f} is positioned as a compromise between the buyer offer and the current target."
+        )
+    elif turn.seller_decision == "reject":
+        if buyer_offer is not None:
+            reasons.append(
+                f"The buyer offer of ${buyer_offer:.2f} is below the currently acceptable level for {product_title}."
+            )
+        reasons.append(
+            f"The seller cannot go below roughly ${min_expected:.2f} on this item right now."
+        )
+    else:
+        reasons.append("This negotiation has already been closed by the seller.")
+
+    if inventory <= 10:
+        reasons.append("Inventory is tight, so discount room is limited.")
+    elif inventory >= 120:
+        reasons.append("There is enough inventory to allow some flexibility, but not an open-ended discount.")
+
+    if urgency == "HOT":
+        reasons.append("The item has healthy demand, so the seller is protecting price more carefully.")
+    elif urgency == "URGENT":
+        reasons.append("The seller is motivated to move this item, which supports a faster concession path.")
+
+    if turn.round_index >= session.max_rounds:
+        reasons.append("This is effectively the final round, so the response should sound decisive.")
+
+    if list_price > 0:
+        reasons.append(
+            f"The list price is ${list_price:.2f}, so the seller should frame any concession as a meaningful move from that anchor."
+        )
+
+    return " ".join(reasons)
+
+
+def _build_human_fallback_message(session: NegotiationSession, turn: NegotiationTurn) -> str:
+    product_title = session.product.title or "this item"
+    buyer_offer = float(turn.buyer_offer) if turn.buyer_offer is not None else None
+    counter_price = float(turn.seller_counter_price or 0)
+    min_expected = float(turn.min_expected_price or 0)
+
+    if turn.seller_decision == "need_offer":
+        return (
+            f"I can help with {product_title}, but I need a concrete number from you first. "
+            "Share your best offer and I will review what I can do."
+        )
+    if turn.seller_decision == "accept":
+        return (
+            f"That works on our side for {product_title}. "
+            f"We can confirm the deal at ${counter_price:.2f} and move straight to the next step."
+        )
+    if turn.seller_decision == "counter":
+        buyer_part = (
+            f"I see your offer at ${buyer_offer:.2f}, and you're close enough for a real discussion. "
+            if buyer_offer is not None
+            else ""
+        )
+        return (
+            f"{buyer_part}I can't approve that level yet, but I can bring {product_title} to "
+            f"${counter_price:.2f}. That's a fair move from our side if you're ready to proceed."
+        )
+    if turn.seller_decision == "reject":
+        buyer_part = (
+            f"I understand you're aiming for ${buyer_offer:.2f}, "
+            if buyer_offer is not None
+            else ""
+        )
+        return (
+            f"{buyer_part}but that is below what we can accept for {product_title}. "
+            f"If you want to keep this moving, we would need to stay closer to ${min_expected:.2f}."
+        )
+    return (
+        f"This negotiation for {product_title} is already closed. "
+        "If you want to revisit pricing, start a new negotiation round."
+    )
+
+
 async def _apply_llm_price_with_guard(
     *,
     session: NegotiationSession,
@@ -143,11 +249,19 @@ async def create_negotiation_session(
             buyer_message=buyer_note,
             buyer_intent=intent,
         )
+        opening.seller_message = _build_human_fallback_message(session, opening)
         opening.seller_message = await generate_seller_reply(
             decision=opening.seller_decision,
             counter_price=opening.seller_counter_price,
             current_target_price=opening.current_target_price,
             min_expected_price=opening.min_expected_price,
+            product_title=session.product.title,
+            list_price=float(session.product.sale_price or 0),
+            inventory=int(session.product.mock_inventory or 0),
+            urgency_status=str(session.product.mock_urgency_status or "NORMAL"),
+            round_index=opening.round_index,
+            max_rounds=session.max_rounds,
+            reason_summary=_build_reason_summary(session, opening),
             buyer_message=buyer_note,
             buyer_intent=intent,
             fallback_message=opening.seller_message,
@@ -195,6 +309,7 @@ async def submit_buyer_offer(session: NegotiationSession, payload: NegotiationOf
         buyer_message=payload.buyer_message,
         buyer_intent=intent,
     )
+    turn.seller_message = _build_human_fallback_message(session, turn)
     if payload.buyer_message:
         if intent is None:
             intent = await parse_buyer_intent(payload.buyer_message)
@@ -203,6 +318,13 @@ async def submit_buyer_offer(session: NegotiationSession, payload: NegotiationOf
             counter_price=turn.seller_counter_price,
             current_target_price=turn.current_target_price,
             min_expected_price=turn.min_expected_price,
+            product_title=session.product.title,
+            list_price=float(session.product.sale_price or 0),
+            inventory=int(session.product.mock_inventory or 0),
+            urgency_status=str(session.product.mock_urgency_status or "NORMAL"),
+            round_index=turn.round_index,
+            max_rounds=session.max_rounds,
+            reason_summary=_build_reason_summary(session, turn),
             buyer_message=payload.buyer_message,
             buyer_intent=intent,
             fallback_message=turn.seller_message,

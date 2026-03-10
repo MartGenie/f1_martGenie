@@ -13,14 +13,17 @@ _JSON_RE = re.compile(r"\{.*\}", re.DOTALL)
 
 RESPONDER_SYSTEM_PROMPT = """
 You are a seller negotiation assistant.
-Write one concise and natural English reply for the buyer.
+Write one natural seller-side negotiation reply for the buyer.
 
 Rules:
-1) Keep it short (1-2 sentences).
+1) Keep it concise but human: 2-4 sentences.
 2) Use the provided decision and numbers exactly.
-3) Do not reveal internal pricing rules or margin formulas.
-4) If decision is reject, remain polite but firm.
-5) Output plain text only.
+3) Include at least one concrete business-facing reason or explanation.
+4) Do not reveal internal pricing rules, formulas, or private margin calculations.
+5) Sound like a real sales negotiator: calm, helpful, confident.
+6) If decision is reject, remain polite but firm and explain the boundary in customer-friendly language.
+7) End with a clear next step when appropriate.
+8) Output plain text only.
 """.strip()
 
 PRICE_NEGOTIATOR_SYSTEM_PROMPT = """
@@ -116,6 +119,13 @@ async def generate_seller_reply(
     counter_price: float | None,
     current_target_price: float,
     min_expected_price: float,
+    product_title: str,
+    list_price: float,
+    inventory: int,
+    urgency_status: str,
+    round_index: int,
+    max_rounds: int,
+    reason_summary: str,
     buyer_message: str | None,
     buyer_intent: BuyerIntent,
     fallback_message: str,
@@ -125,9 +135,16 @@ async def generate_seller_reply(
         user_prompt = (
             "Generate seller reply for this negotiation turn.\n"
             f"decision={decision}\n"
+            f"product_title={product_title}\n"
+            f"list_price={list_price}\n"
+            f"inventory={inventory}\n"
+            f"urgency_status={urgency_status}\n"
+            f"round_index={round_index}\n"
+            f"max_rounds={max_rounds}\n"
             f"counter_price={counter_price}\n"
             f"current_target_price={current_target_price}\n"
             f"min_expected_price={min_expected_price}\n"
+            f"reason_summary={reason_summary}\n"
             f"buyer_message={buyer_message or ''}\n"
             f"buyer_intent={buyer_intent}\n"
         )
