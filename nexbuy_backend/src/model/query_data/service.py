@@ -4,6 +4,7 @@ from typing import Any
 from src.model.user_content_analysis.schema import UserContentAnalysisResult
 
 from .db import query_products
+from .embedding_service import EmbeddingService
 from .mapper import build_query_filters
 from .schema import QueryDataResult
 
@@ -47,6 +48,20 @@ async def query_products_from_analysis(
         f"room={len(filters.room_keywords)}, items={len(filters.item_categories)}, "
         f"constraints={len(filters.constraint_keywords)}"
     )
+    if filters.query_text:
+        t_embed = time.perf_counter()
+        try:
+            embedding_client = EmbeddingService()
+            filters.query_vector = await embedding_client.embed_text(filters.query_text)
+            logs.append(
+                f"[query_data] query embedding ready in {(time.perf_counter() - t_embed):.2f}s, "
+                f"dim={len(filters.query_vector)}"
+            )
+        except Exception as exc:
+            filters.query_vector = None
+            logs.append(f"[query_data] embedding failed, fallback to keyword-only search: {exc}")
+    else:
+        logs.append("[query_data] empty query_text, using keyword-only search")
 
     t_db = time.perf_counter()
     products = await query_products(filters)

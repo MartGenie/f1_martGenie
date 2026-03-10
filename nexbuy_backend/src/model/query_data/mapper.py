@@ -50,6 +50,26 @@ def _expand(value: str, mapping: dict[str, list[str]]) -> list[str]:
     return _clean(expanded)
 
 
+def _build_query_text(
+    *,
+    budget: float | None,
+    style: str | None,
+    room: str | None,
+    item_categories: list[str],
+    constraints: list[str],
+) -> str:
+    items_compact = ", ".join(item_categories[:8]) if item_categories else ""
+    constraints_compact = ", ".join(constraints[:8]) if constraints else ""
+    parts = [
+        f"budget: {budget}" if budget is not None else "",
+        f"style: {style or ''}",
+        f"room: {room or ''}",
+        f"items: {items_compact}",
+        f"constraints: {constraints_compact}",
+    ]
+    return " | ".join([p for p in parts if p]).strip()
+
+
 def build_query_filters(
     analysis: UserContentAnalysisResult,
     *,
@@ -114,14 +134,35 @@ def build_query_filters(
     for c in constraint_values:
         constraint_keywords.extend(_expand(c, CONSTRAINT_SYNONYMS))
 
+    style_source = analysis.style_preference
+    if style_source is None and style_keywords:
+        style_source = style_keywords[0]
+    room_source = analysis.room_type
+    if room_source is None and room_keywords:
+        room_source = room_keywords[0]
+
+    query_text = _build_query_text(
+        budget=analysis.total_budget,
+        style=style_source,
+        room=room_source,
+        item_categories=_clean(item_categories),
+        constraints=_clean(constraint_values),
+    )
+
+    final_limit = max(1, limit)
+    vector_top_k = min(500, max(50, final_limit * 5))
+
     return (
         QueryFilters(
+            query_text=query_text,
+            vector_top_k=vector_top_k,
+            final_limit=final_limit,
             max_budget=analysis.total_budget,
             style_keywords=_clean(style_keywords),
             room_keywords=_clean(room_keywords),
             item_categories=_clean(item_categories),
             constraint_keywords=_clean(constraint_keywords),
-            limit=limit,
+            limit=final_limit,
         ),
         memory_used_fields,
     )

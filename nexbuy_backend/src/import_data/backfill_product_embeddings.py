@@ -31,6 +31,11 @@ ALTER TABLE homary_products
 ADD COLUMN IF NOT EXISTS search_text TEXT,
 ADD COLUMN IF NOT EXISTS embedding vector(1024);
 """
+CREATE_VECTOR_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_homary_products_embedding_hnsw
+ON homary_products
+USING hnsw (embedding vector_cosine_ops);
+"""
 
 
 def parse_args() -> argparse.Namespace:
@@ -121,6 +126,12 @@ async def backfill_embeddings(
                 "vector(1024)", f"vector({EMBEDDING_DIM})"
             )
         )
+        create_vector_index_sql = text(
+            CREATE_VECTOR_INDEX_SQL.replace("homary_products", table_name).replace(
+                "idx_homary_products_embedding_hnsw",
+                f"idx_{table_name}_embedding_hnsw",
+            )
+        )
         select_stmt = text(_select_sql(table_name, only_missing))
         update_stmt = text(_build_update_stmt(table_name))
 
@@ -131,6 +142,7 @@ async def backfill_embeddings(
         async with engine.begin() as conn:
             await conn.execute(create_extension_sql)
             await conn.execute(alter_vector_sql)
+            await conn.execute(create_vector_index_sql)
 
             while True:
                 fetch_limit = batch_size

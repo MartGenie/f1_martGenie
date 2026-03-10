@@ -2,6 +2,12 @@ from pydantic import BaseModel, Field
 
 
 class QueryFilters(BaseModel):
+    query_text: str = Field(default="")
+    query_vector: list[float] | None = Field(default=None)
+    vector_top_k: int = Field(default=100, ge=1, le=500)
+    final_limit: int = Field(default=20, ge=1, le=100)
+    semantic_weight: float = Field(default=0.65, ge=0.0, le=1.0)
+    keyword_weight: float = Field(default=0.35, ge=0.0, le=1.0)
     max_budget: float | None = Field(default=None)
     style_keywords: list[str] = Field(default_factory=list)
     room_keywords: list[str] = Field(default_factory=list)
@@ -23,6 +29,9 @@ class ProductRow(BaseModel):
     stock_status_text: str | None = None
     main_image_url: str | None = None
     product_url: str | None = None
+    semantic_score: float | None = None
+    keyword_score: float | None = None
+    final_score: float | None = None
 
 
 class QueryDataResult(BaseModel):

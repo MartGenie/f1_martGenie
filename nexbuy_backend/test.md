@@ -17,7 +17,7 @@
 🟣 场景五：复杂硬性约束（Complex Constraints）
 测试目的： 验证 AI 能否把复杂的自然语言转化为多条准确的 hard_constraints（如尺寸限制、材质、安全性）。
 中文： 预算 2 万人民币，买一张意式轻奢风的餐桌，配 6 把椅子。要求餐桌长度绝对不能超过 2 米，最好是大理石桌面，边角必须圆润，因为家里有乱跑的小孩。
-英文： Budget is 20,000 RMB. I want an Italian luxury style dining table with 6 chairs. The table length cannot exceed 2 meters, preferably a marble top, and the corners must be rounded because of toddlers running around.
+英文： Budget is 20,000$. I want an Italian luxury style dining table with 6 chairs. The table length cannot exceed 2 meters, preferably a marble top, and the corners must be rounded because of toddlers running around.
 🟠 场景六：口语化/俚语金额（Slang / Fuzzy Numbers）
 测试目的： 验证大模型对人类口语化数字的提取能力（比如“两三千”、“grand/k”转化为具体的数字和货币）。
 中文： 手头大概有两三千块钱吧，想搞个电竞房，买个升降桌和氛围灯，赛博朋克风的那种。

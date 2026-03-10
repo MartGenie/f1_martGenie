@@ -89,6 +89,11 @@ ALTER TABLE homary_products
 ADD COLUMN IF NOT EXISTS search_text TEXT,
 ADD COLUMN IF NOT EXISTS embedding vector(1024);
 """
+CREATE_VECTOR_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_homary_products_embedding_hnsw
+ON homary_products
+USING hnsw (embedding vector_cosine_ops);
+"""
 
 
 UPSERT_SQL = """
@@ -376,6 +381,12 @@ async def import_products(
             "vector(1024)", f"vector({EMBEDDING_DIM})"
         )
     )
+    create_vector_index_sql = text(
+        CREATE_VECTOR_INDEX_SQL.replace("homary_products", table_name).replace(
+            "idx_homary_products_embedding_hnsw",
+            f"idx_{table_name}_embedding_hnsw",
+        )
+    )
     upsert_sql = text(UPSERT_SQL.replace("homary_products", table_name))
 
     engine = create_async_engine(settings.database_url, echo=False)
@@ -390,6 +401,7 @@ async def import_products(
             await conn.execute(create_extension_sql)
             await conn.execute(create_sql)
             await conn.execute(alter_vector_sql)
+            await conn.execute(create_vector_index_sql)
 
             with input_path.open("r", encoding="utf-8") as f:
                 for line_no, line in enumerate(f, start=1):
