@@ -8,6 +8,8 @@ from .auth.db import engine
 from .auth.models import Base
 from .auth.router import router as auth_router
 from .chat_router import router as chat_router
+from .memory import models as _memory_models  # noqa: F401
+from .memory.router import router as memory_router
 
 
 @asynccontextmanager
@@ -27,6 +29,7 @@ app.add_middleware(
 )
 app.include_router(auth_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
+app.include_router(memory_router, prefix="/api")
 
 
 @app.get("/health", tags=["system"])

@@ -13,6 +13,12 @@ import {
   subscribeChatStream,
   type TimelineEvent,
 } from "@/lib/chat-api";
+import {
+  fetchMemoryProfile,
+  fetchOnboardingQuestions,
+  saveMemoryProfile,
+  type OnboardingQuestion,
+} from "@/lib/memory-api";
 
 type FriendlyEvent = {
   title: string;
@@ -73,6 +79,10 @@ export default function ChatWorkspacePage() {
   const [showOrderConfirm, setShowOrderConfirm] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderResult, setOrderResult] = useState<MockOrderResponse | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingQuestions, setOnboardingQuestions] = useState<OnboardingQuestion[]>([]);
+  const [onboardingAnswers, setOnboardingAnswers] = useState<Record<string, string | string[]>>({});
+  const [isSavingOnboarding, setIsSavingOnboarding] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [status, setStatus] = useState("Preparing workspace...");
   const [error, setError] = useState("");
@@ -94,12 +104,23 @@ export default function ChatWorkspacePage() {
 
       try {
         await fetchCurrentUser(token);
-        const createdSessionId = await createChatSession();
-        if (unmounted) {
-          return;
+        const memory = await fetchMemoryProfile();
+        if (memory.onboarding_required) {
+          const questions = await fetchOnboardingQuestions();
+          if (unmounted) {
+            return;
+          }
+          setOnboardingQuestions(questions);
+          setShowOnboarding(true);
+          setStatus("Please complete onboarding questions first.");
+        } else {
+          const createdSessionId = await createChatSession();
+          if (unmounted) {
+            return;
+          }
+          setSessionId(createdSessionId);
+          setStatus("Workspace ready. Tell me your room, style, and budget.");
         }
-        setSessionId(createdSessionId);
-        setStatus("Workspace ready. Tell me your room, style, and budget.");
       } catch (bootstrapError) {
         clearAccessToken();
         const message =
@@ -263,6 +284,63 @@ export default function ChatWorkspacePage() {
       setError(message);
     } finally {
       setIsPlacingOrder(false);
+    }
+  }
+
+  function setOnboardingMultiValue(questionKey: string, value: string, checked: boolean) {
+    setOnboardingAnswers((current) => {
+      const prev = current[questionKey];
+      const arr = Array.isArray(prev) ? [...prev] : [];
+      const next = checked ? Array.from(new Set([...arr, value])) : arr.filter((v) => v !== value);
+      return { ...current, [questionKey]: next };
+    });
+  }
+
+  async function handleSubmitOnboarding() {
+    setIsSavingOnboarding(true);
+    setError("");
+    try {
+      const housingType =
+        typeof onboardingAnswers.housing_type === "string"
+          ? onboardingAnswers.housing_type
+          : null;
+
+      const negativeInput = onboardingAnswers.negative_constraints;
+      const negativeConstraints = Array.isArray(negativeInput)
+        ? negativeInput
+        : typeof negativeInput === "string"
+          ? negativeInput
+              .split("\n")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [];
+
+      await saveMemoryProfile({
+        housing_type: housingType,
+        space_tier: null,
+        household_members: Array.isArray(onboardingAnswers.household_members)
+          ? onboardingAnswers.household_members
+          : [],
+        style_preferences: Array.isArray(onboardingAnswers.style_preferences)
+          ? onboardingAnswers.style_preferences
+          : [],
+        price_philosophy:
+          typeof onboardingAnswers.price_philosophy === "string"
+            ? onboardingAnswers.price_philosophy
+            : null,
+        negative_constraints: negativeConstraints,
+        raw_answers: onboardingAnswers,
+      });
+
+      const createdSessionId = await createChatSession();
+      setSessionId(createdSessionId);
+      setShowOnboarding(false);
+      setStatus("Memory saved. Workspace ready.");
+    } catch (submitError) {
+      const message = submitError instanceof Error ? submitError.message : "Failed to save onboarding.";
+      setError(message);
+    } finally {
+      setIsSavingOnboarding(false);
     }
   }
 
@@ -529,6 +607,74 @@ export default function ChatWorkspacePage() {
                 type="button"
               >
                 {isPlacingOrder ? "Paying..." : "Confirm payment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {showOnboarding ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-5">
+            <h3 className="text-xl font-semibold text-slate-900">Welcome Setup</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              Please answer these questions once. We will use them as your long-term preference memory.
+            </p>
+            <div className="mt-4 space-y-4">
+              {onboardingQuestions.map((q, index) => (
+                <section className="rounded-xl border border-slate-200 p-3" key={q.key}>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {index + 1}. {q.question}
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    {q.type === "choice" ? (
+                      q.multi_select ? (
+                        q.options.map((opt) => (
+                          <label className="flex items-center gap-2 text-sm text-slate-700" key={opt}>
+                            <input
+                              checked={
+                                Array.isArray(onboardingAnswers[q.key])
+                                  ? onboardingAnswers[q.key].includes(opt)
+                                  : false
+                              }
+                              onChange={(e) => setOnboardingMultiValue(q.key, opt, e.target.checked)}
+                              type="checkbox"
+                            />
+                            <span>{opt}</span>
+                          </label>
+                        ))
+                      ) : (
+                        q.options.map((opt) => (
+                          <label className="flex items-center gap-2 text-sm text-slate-700" key={opt}>
+                            <input
+                              checked={onboardingAnswers[q.key] === opt}
+                              name={q.key}
+                              onChange={() => setOnboardingAnswers((c) => ({ ...c, [q.key]: opt }))}
+                              type="radio"
+                            />
+                            <span>{opt}</span>
+                          </label>
+                        ))
+                      )
+                    ) : (
+                      <textarea
+                        className="min-h-[88px] w-full rounded-lg border border-slate-300 p-2 text-sm outline-none focus:border-[#2f6fa3]"
+                        onChange={(e) => setOnboardingAnswers((c) => ({ ...c, [q.key]: e.target.value }))}
+                        placeholder="One point per line..."
+                        value={typeof onboardingAnswers[q.key] === "string" ? onboardingAnswers[q.key] : ""}
+                      />
+                    )}
+                  </div>
+                </section>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                className="rounded-xl bg-[#2f6fa3] px-4 py-2 text-sm font-semibold text-white disabled:bg-[#9cb6cd]"
+                disabled={isSavingOnboarding}
+                onClick={handleSubmitOnboarding}
+                type="button"
+              >
+                {isSavingOnboarding ? "Saving..." : "Save and continue"}
               </button>
             </div>
           </div>
