@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { clearAccessToken, fetchCurrentUser, readAccessToken } from "@/lib/auth";
 import AuthModal from "@/src/components/AuthModal";
@@ -82,9 +83,9 @@ const executionFeed = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
   const [authOpen, setAuthOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("Checking account session...");
   const [activeHeroProduct, setActiveHeroProduct] = useState<number | null>(null);
 
   useEffect(() => {
@@ -92,18 +93,15 @@ export default function HomePage() {
       const token = readAccessToken();
       if (!token) {
         setIsAuthenticated(false);
-        setStatusMessage("Sign in to unlock the negotiation workspace.");
         return;
       }
 
       try {
-        const user = await fetchCurrentUser(token);
+        await fetchCurrentUser(token);
         setIsAuthenticated(true);
-        setStatusMessage(`Signed in as ${user.email}`);
       } catch {
         clearAccessToken();
         setIsAuthenticated(false);
-        setStatusMessage("Saved session expired. Please sign in again.");
       }
     }
 
@@ -113,7 +111,14 @@ export default function HomePage() {
   function handleSignOut() {
     clearAccessToken();
     setIsAuthenticated(false);
-    setStatusMessage("Signed out.");
+  }
+
+  function handleTryNow() {
+    if (isAuthenticated) {
+      router.push("/chat");
+      return;
+    }
+    setAuthOpen(true);
   }
 
   return (
@@ -129,66 +134,63 @@ export default function HomePage() {
         />
 
         <section className="mx-auto w-full max-w-[1480px] px-6 pb-12 pt-28" id="hero">
-          <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
-            <div className="max-w-4xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/70 backdrop-blur-xl">
-              AI-native procurement stack
-              <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.75)]" />
-            </div>
-            <h1 className="mt-8 max-w-4xl text-5xl font-black tracking-[-0.04em] text-white md:text-7xl md:leading-[0.96]">
-              The Future of Complex Procurement.
-              <span className="mt-3 block bg-[linear-gradient(90deg,#ffffff_0%,#c7d2fe_32%,#7dd3fc_68%,#ffffff_100%)] bg-clip-text text-transparent">
-                Driven by Multi-Agent Negotiation.
-              </span>
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-white/60 md:text-xl">
-              Nexbuy turns product discovery, bundle ranking, and price negotiation into a single
-              controlled workflow. It behaves less like a storefront and more like an execution
-              engine for high-value purchase decisions.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link
-                className="inline-flex h-12 items-center rounded-2xl bg-white px-6 text-sm font-bold text-black transition hover:bg-white/90"
-                href="/chat"
-              >
-                Enter Workspace
-              </Link>
-              <button
-                className="inline-flex h-12 items-center rounded-2xl border border-white/12 bg-white/5 px-6 text-sm font-semibold text-white/80 backdrop-blur-xl transition hover:border-white/20 hover:bg-white/8"
-                onClick={() => setAuthOpen(true)}
-                type="button"
-              >
-                Sign in / Register
-              </button>
-            </div>
-            <p className="mt-4 text-sm text-white/42">{statusMessage}</p>
-            <div className="mt-8 flex max-w-3xl flex-col gap-3 rounded-[28px] border border-white/10 bg-white/5 p-4 backdrop-blur-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_24px_120px_rgba(79,70,229,0.18)]">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/45">
-                Launch prompt
-              </p>
-              <div className="flex items-start justify-between gap-4 rounded-[24px] border border-white/10 bg-black/40 px-5 py-4">
-                <p className="text-sm leading-7 text-white/72 md:text-base">
-                  Build a warm, pet-safe living room under $3,000. Rank the best bundles, expose
-                  the logic, then negotiate the lead item automatically.
+          <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-stretch">
+            <div className="flex max-w-4xl flex-col lg:min-h-[620px] lg:justify-between">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/70 backdrop-blur-xl">
+                  AI-native procurement stack
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.75)]" />
+                </div>
+                <h1 className="mt-8 max-w-4xl text-5xl font-black tracking-[-0.04em] text-white md:text-7xl md:leading-[0.96]">
+                  The Future of Complex Procurement.
+                  <span className="mt-3 block bg-[linear-gradient(90deg,#ffffff_0%,#c7d2fe_32%,#7dd3fc_68%,#ffffff_100%)] bg-clip-text text-transparent">
+                    Driven by Multi-Agent Negotiation.
+                  </span>
+                </h1>
+                <p className="mt-6 max-w-2xl text-lg leading-8 text-white/60 md:text-xl">
+                  Nexbuy turns product discovery, bundle ranking, and price negotiation into a single
+                  controlled workflow. It behaves less like a storefront and more like an execution
+                  engine for high-value purchase decisions.
                 </p>
-                <div className="hidden h-11 min-w-11 items-center justify-center rounded-full border border-indigo-400/40 bg-indigo-500/15 text-indigo-200 shadow-[0_0_40px_rgba(99,102,241,0.35)] md:flex">
-                  AI
+                <div className="mt-10 grid gap-3 md:grid-cols-3">
+                  {systemHighlights.map((item, index) => (
+                    <article
+                      className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl transition duration-300 hover:border-indigo-400/35 hover:bg-white/[0.05] hover:shadow-[0_0_60px_rgba(79,70,229,0.15)]"
+                      key={item.title}
+                      style={{ animation: `fadeUp 0.6s ease ${index * 0.08}s both` }}
+                    >
+                      <p className="text-sm font-semibold tracking-[-0.02em] text-white">{item.title}</p>
+                      <p className="mt-2 text-sm leading-6 text-white/55">{item.detail}</p>
+                    </article>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-12">
+                <div className="flex justify-center lg:justify-end lg:pr-[-2px] xl:pr-[-18px]">
+                  <button
+                    className="group relative inline-flex min-h-16 items-center justify-center overflow-hidden rounded-[24px] p-[1px] transition duration-300 hover:scale-[1.02] md:min-h-[76px]"
+                    onClick={handleTryNow}
+                    type="button"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="button-beam pointer-events-none absolute inset-[-35%] rounded-[28px] opacity-80 blur-md transition duration-300 group-hover:opacity-100"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 rounded-[22px] bg-[radial-gradient(circle_at_center,rgba(125,211,252,0.14),transparent_58%)] opacity-0 transition duration-300 group-hover:opacity-100"
+                    />
+                    <span className="relative z-10 inline-flex items-center gap-4 rounded-[23px] border border-white/10 bg-[linear-gradient(180deg,#0d1015_0%,#050608_100%)] px-10 py-4 text-xl font-black tracking-[-0.02em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_50px_rgba(0,0,0,0.45)] md:px-14 md:py-5 md:text-2xl">
+                      <span className="absolute inset-0 rounded-[23px] bg-[linear-gradient(115deg,transparent_18%,rgba(255,255,255,0.02)_34%,rgba(125,211,252,0.12)_50%,rgba(255,255,255,0.03)_58%,transparent_76%)] opacity-70 transition duration-300 group-hover:opacity-100" />
+                      <span className="relative z-10">Initialize Workspace</span>
+                      <span className="relative z-10 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-lg text-sky-200 transition duration-300 group-hover:border-sky-300/30 group-hover:bg-sky-300/10 group-hover:text-white">
+                        ↗
+                      </span>
+                    </span>
+                  </button>
                 </div>
               </div>
             </div>
-            <div className="mt-10 grid gap-3 md:grid-cols-3">
-              {systemHighlights.map((item, index) => (
-                <article
-                  className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl transition duration-300 hover:border-indigo-400/35 hover:bg-white/[0.05] hover:shadow-[0_0_60px_rgba(79,70,229,0.15)]"
-                  key={item.title}
-                  style={{ animation: `fadeUp 0.6s ease ${index * 0.08}s both` }}
-                >
-                  <p className="text-sm font-semibold tracking-[-0.02em] text-white">{item.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-white/55">{item.detail}</p>
-                </article>
-              ))}
-            </div>
-          </div>
 
             <aside
               className="relative h-[620px] rounded-[36px] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_40px_120px_rgba(79,70,229,0.12)]"
@@ -352,6 +354,27 @@ export default function HomePage() {
             opacity: 1;
             transform: translateY(0);
           }
+        }
+
+        @keyframes buttonBeamSpin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        .button-beam {
+          background: conic-gradient(
+            from 90deg,
+            rgba(125, 211, 252, 0.02) 0deg,
+            rgba(125, 211, 252, 0.24) 60deg,
+            rgba(255, 255, 255, 0.06) 120deg,
+            rgba(99, 102, 241, 0.22) 200deg,
+            rgba(125, 211, 252, 0.02) 360deg
+          );
+          animation: buttonBeamSpin 7s linear infinite;
         }
       `}</style>
     </main>
