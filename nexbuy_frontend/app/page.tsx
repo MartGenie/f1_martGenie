@@ -1,24 +1,54 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { clearAccessToken, fetchCurrentUser, readAccessToken } from "@/lib/auth";
 import AuthModal from "@/src/components/AuthModal";
 import Navbar from "@/src/components/Navbar";
 
-type ProductCard = {
-  tag: string;
-  emoji: string;
-  category: string;
-  name: string;
-  price: string;
-};
+const systemHighlights = [
+  {
+    title: "Multi-agent procurement engine",
+    detail: "Buyer and seller agents negotiate against hard constraints instead of producing soft suggestions.",
+  },
+  {
+    title: "Operational transparency",
+    detail: "Timeline logs, bundle rationale, and negotiation history stay visible while the system executes.",
+  },
+  {
+    title: "Decision-ready output",
+    detail: "Plans are scored, itemized, and kept actionable so the user can bargain or check out without context switching.",
+  },
+];
 
-const featuredProducts: ProductCard[] = [
-  { tag: "Top Pick", emoji: "🛋️", category: "Living Room", name: "Modular Cat-Friendly Sofa", price: "$1,299" },
-  { tag: "New", emoji: "🪵", category: "Dining", name: "Extendable Oak Dining Set", price: "$2,005" },
-  { tag: "Bundle", emoji: "💡", category: "Lighting", name: "Warm Arc Floor Lamp", price: "$580" },
-  { tag: "Popular", emoji: "🧺", category: "Accessories", name: "Washable Neutral Rug", price: "$885" },
+const capabilityCards = [
+  {
+    eyebrow: "Product graph",
+    title: "Structured recommendation surface",
+    copy: "The system turns product search into ranked bundle options with clear price anchors and fit confidence.",
+    image: "/main_page/product.png",
+  },
+  {
+    eyebrow: "Agent dialogue",
+    title: "Negotiation as a controllable workflow",
+    copy: "Buyer intent, seller response, and guard-rail validation are exposed as a live operating trace.",
+    image: "/main_page/negotiate.png",
+  },
+  {
+    eyebrow: "Execution console",
+    title: "Chat that behaves like an instrument panel",
+    copy: "Pipeline logs and plan generation read like a monitored system, not a generic assistant transcript.",
+    image: "/main_page/chat.png",
+  },
+];
+
+const executionFeed = [
+  "[01] Requirement parsed: living room / two cats / budget-sensitive",
+  "[02] Memory profile loaded: pet-safe materials prioritized",
+  "[03] 42 candidate SKUs matched across seating, storage, lighting",
+  "[04] 3 bundle configurations scored for fit, risk, and spend",
+  "[05] Buyer agent armed with target and max acceptable thresholds",
 ];
 
 export default function HomePage() {
@@ -31,7 +61,7 @@ export default function HomePage() {
       const token = readAccessToken();
       if (!token) {
         setIsAuthenticated(false);
-        setStatusMessage("Sign in to unlock your AI shopping workspace.");
+        setStatusMessage("Sign in to unlock the negotiation workspace.");
         return;
       }
 
@@ -56,108 +86,241 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f2efeb] text-[#2f2a26]">
-      <Navbar
-        isAuthenticated={isAuthenticated}
-        onOpenAuth={() => setAuthOpen(true)}
-        onSignOut={handleSignOut}
-      />
+    <main className="min-h-screen overflow-x-hidden bg-[#050505] text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.18),transparent_30%),radial-gradient(circle_at_80%_20%,rgba(56,189,248,0.14),transparent_24%),radial-gradient(circle_at_bottom,rgba(255,255,255,0.06),transparent_38%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.02),transparent_12%,transparent_88%,rgba(255,255,255,0.02))]" />
 
-      <section
-        className="mx-auto grid w-full max-w-[1400px] gap-12 px-6 py-14 lg:grid-cols-2"
-        id="hero"
-      >
-        <div>
-          <div className="inline-flex items-center rounded-full border border-[#e5d9cd] bg-white/70 px-5 py-2 text-sm font-semibold text-[#9a7b61]">
-            AI-driven buyer agent for complex home shopping
-          </div>
-          <h1 className="mt-6 text-5xl leading-[1.04] font-black md:text-7xl">
-            Design Your Whole-Home
-            <br />
-            <span className="text-[#9a7a63]">Shopping Workflow</span>
-          </h1>
-          <p className="mt-6 max-w-2xl text-xl leading-[1.8] text-[#867366]">
-            Describe one room request, and Nexbuy agents scan products, build bundles,
-            and present decision-ready plans with timeline transparency.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Link
-              className="inline-flex h-12 items-center rounded-xl bg-[#6b4a34] px-7 text-base font-bold text-white"
-              href="/chat"
-            >
-              Try Now
-            </Link>
-            <button
-              className="inline-flex h-12 items-center rounded-xl border border-[#d5c6b8] bg-white px-6 text-base font-semibold text-[#5d4a3b]"
-              onClick={() => setAuthOpen(true)}
-              type="button"
-            >
-              Sign in / Register
-            </button>
-          </div>
-          <p className="mt-4 text-sm text-[#8f7d71]">{statusMessage}</p>
-        </div>
+      <div className="relative">
+        <Navbar
+          isAuthenticated={isAuthenticated}
+          onOpenAuth={() => setAuthOpen(true)}
+          onSignOut={handleSignOut}
+        />
 
-        <div className="rounded-3xl border border-[#e8ded3] bg-white p-6 shadow-xl shadow-[#c8b8a43d]" id="assistant">
-          <div className="flex items-center gap-4 border-b border-[#e8dfd5] pb-4">
-            <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#836349] text-white">
-              🤖
-            </span>
-            <div>
-              <p className="text-2xl font-black">Nexbuy Buyer Agent</p>
-              <p className="text-base text-[#67b887]">Online</p>
-            </div>
-          </div>
-          <div className="mt-5 space-y-3 text-base">
-            <div className="ml-auto w-fit rounded-2xl bg-[#6b4a34] px-5 py-2 text-white">
-              Budget $3,000. Build a warm wood living room for two cats.
-            </div>
-            <div className="w-fit rounded-2xl border border-[#e7ddd2] bg-[#f9f6f3] px-5 py-2 text-[#5a4940]">
-              Scanning 4,500 products... Found 42 matches. Building 3 optimized bundles now.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto w-full max-w-[1400px] px-6 py-8" id="products">
-        <p className="text-center text-sm font-bold tracking-[0.22em] text-[#d1ad83] uppercase">
-          Featured Sandbox Products
-        </p>
-        <h2 className="mt-2 text-center text-5xl font-black md:text-6xl">Curated For Demo</h2>
-        <p className="mt-3 text-center text-xl text-[#97867a]">
-          Curated cards from your Homary sandbox to validate bundle-generation workflows.
-        </p>
-        <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-          {featuredProducts.map((item) => (
-            <article className="rounded-3xl bg-[#ece8e3] p-5" key={item.name}>
-              <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-[#7f6a59]">
-                {item.tag}
-              </span>
-              <div className="my-8 text-center text-5xl">{item.emoji}</div>
-              <p className="text-sm text-[#9e8f84]">{item.category}</p>
-              <h3 className="mt-1 text-3xl font-black">{item.name}</h3>
-              <p className="mt-2 text-3xl font-black text-[#5d4838]">{item.price}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section
-        className="mt-12 bg-[linear-gradient(90deg,#403a35_0%,#25282f_50%,#34383f_100%)] px-6 py-20 text-center text-white"
-        id="about"
-      >
-        <h2 className="text-5xl font-black md:text-7xl">Launch Your 10x Shopping Workflow</h2>
-        <p className="mx-auto mt-4 max-w-4xl text-xl text-[#d6c6b5] md:text-2xl">
-          From inspiration to order draft with transparent AI actions, bundle logic, and faster
-          decision cycles.
-        </p>
-        <Link
-          className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#cab090] px-10 py-4 text-xl font-black text-white shadow"
-          href="/chat"
+        <section
+          className="mx-auto grid w-full max-w-[1480px] gap-10 px-6 pb-12 pt-28 lg:grid-cols-[1.05fr_0.95fr] lg:items-center"
+          id="hero"
         >
-          Enter Workspace
-        </Link>
-      </section>
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/70 backdrop-blur-xl">
+              AI-native procurement stack
+              <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.75)]" />
+            </div>
+            <h1 className="mt-8 max-w-4xl text-5xl font-black tracking-[-0.04em] text-white md:text-7xl md:leading-[0.96]">
+              The Future of Complex Procurement.
+              <span className="mt-3 block bg-[linear-gradient(90deg,#ffffff_0%,#c7d2fe_32%,#7dd3fc_68%,#ffffff_100%)] bg-clip-text text-transparent">
+                Driven by Multi-Agent Negotiation.
+              </span>
+            </h1>
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-white/60 md:text-xl">
+              Nexbuy turns product discovery, bundle ranking, and price negotiation into a single
+              controlled workflow. It behaves less like a storefront and more like an execution
+              engine for high-value purchase decisions.
+            </p>
+            <div className="mt-8 flex max-w-3xl flex-col gap-3 rounded-[28px] border border-white/10 bg-white/5 p-4 backdrop-blur-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_24px_120px_rgba(79,70,229,0.18)]">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/45">
+                Launch prompt
+              </p>
+              <div className="flex items-center justify-between gap-4 rounded-[24px] border border-white/10 bg-black/40 px-5 py-4">
+                <p className="text-sm leading-7 text-white/72 md:text-base">
+                  Build a warm, pet-safe living room under $3,000. Rank the best bundles, expose
+                  the logic, then negotiate the lead item automatically.
+                </p>
+                <div className="hidden h-11 min-w-11 items-center justify-center rounded-full border border-indigo-400/40 bg-indigo-500/15 text-indigo-200 shadow-[0_0_40px_rgba(99,102,241,0.35)] md:flex">
+                  AI
+                </div>
+              </div>
+            </div>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Link
+                className="inline-flex h-12 items-center rounded-2xl bg-white px-6 text-sm font-bold text-black transition hover:bg-white/90"
+                href="/chat"
+              >
+                Enter Workspace
+              </Link>
+              <button
+                className="inline-flex h-12 items-center rounded-2xl border border-white/12 bg-white/5 px-6 text-sm font-semibold text-white/80 backdrop-blur-xl transition hover:border-white/20 hover:bg-white/8"
+                onClick={() => setAuthOpen(true)}
+                type="button"
+              >
+                Sign in / Register
+              </button>
+            </div>
+            <p className="mt-4 text-sm text-white/42">{statusMessage}</p>
+            <div className="mt-10 grid gap-3 md:grid-cols-3">
+              {systemHighlights.map((item, index) => (
+                <article
+                  className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl transition duration-300 hover:border-indigo-400/35 hover:bg-white/[0.05] hover:shadow-[0_0_60px_rgba(79,70,229,0.15)]"
+                  key={item.title}
+                  style={{ animation: `fadeUp 0.6s ease ${index * 0.08}s both` }}
+                >
+                  <p className="text-sm font-semibold tracking-[-0.02em] text-white">{item.title}</p>
+                  <p className="mt-2 text-sm leading-6 text-white/55">{item.detail}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:pl-6">
+            <article className="relative overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] p-3 backdrop-blur-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_30px_120px_rgba(0,0,0,0.55)]">
+              <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(129,140,248,0.8),transparent)]" />
+              <div className="mb-3 flex items-center justify-between px-3 pt-2">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/35">Live control surface</p>
+                  <p className="mt-1 text-lg font-semibold tracking-[-0.03em] text-white">
+                    Buyer agent workspace
+                  </p>
+                </div>
+                <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold text-emerald-300">
+                  ACTIVE
+                </span>
+              </div>
+              <div className="overflow-hidden rounded-[26px] border border-white/10 bg-black/40">
+                <Image
+                  alt="Nexbuy chat workspace"
+                  className="h-auto w-full object-cover"
+                  height={900}
+                  priority
+                  src="/main_page/chat.png"
+                  width={1200}
+                />
+              </div>
+            </article>
+            <div className="grid gap-4 md:grid-cols-2">
+              <article className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-3 backdrop-blur-xl transition hover:border-sky-400/30 hover:shadow-[0_0_70px_rgba(56,189,248,0.14)]">
+                <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(56,189,248,0.8),transparent)]" />
+                <p className="px-2 pt-2 text-xs uppercase tracking-[0.22em] text-white/35">Recommendation graph</p>
+                <div className="mt-3 overflow-hidden rounded-[22px] border border-white/10 bg-black/30">
+                  <Image
+                    alt="Product recommendation surface"
+                    className="h-auto w-full object-cover"
+                    height={720}
+                    src="/main_page/product.png"
+                    width={960}
+                  />
+                </div>
+              </article>
+              <article className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-3 backdrop-blur-xl transition hover:border-indigo-400/30 hover:shadow-[0_0_70px_rgba(129,140,248,0.16)]">
+                <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(129,140,248,0.8),transparent)]" />
+                <p className="px-2 pt-2 text-xs uppercase tracking-[0.22em] text-white/35">Negotiation engine</p>
+                <div className="mt-3 overflow-hidden rounded-[22px] border border-white/10 bg-black/30">
+                  <Image
+                    alt="Negotiation transcript"
+                    className="h-auto w-full object-cover"
+                    height={720}
+                    src="/main_page/negotiate.png"
+                    width={960}
+                  />
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto grid w-full max-w-[1480px] gap-5 px-6 py-6 lg:grid-cols-[0.8fr_1.2fr]" id="system">
+          <article className="rounded-[32px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-2xl">
+            <p className="text-xs uppercase tracking-[0.22em] text-white/35">System trace</p>
+            <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-white md:text-4xl">
+              Built for monitored decisions, not decorative AI.
+            </h2>
+            <p className="mt-4 max-w-xl text-base leading-8 text-white/58">
+              The interface should feel like a procurement terminal. Every recommendation is tied
+              to execution state, every bargain is bounded by constraints, and every output is
+              structured for action.
+            </p>
+          </article>
+          <article className="rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.03))] p-5 backdrop-blur-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.22em] text-white/35">Execution log</p>
+                <h3 className="mt-1 text-lg font-semibold tracking-[-0.03em] text-white">Agent pipeline</h3>
+              </div>
+              <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-mono text-[11px] text-emerald-300">
+                RUNNING
+              </span>
+            </div>
+            <div className="mt-4 space-y-3 font-mono text-sm">
+              {executionFeed.map((line, index) => (
+                <div
+                  className="rounded-2xl border border-white/8 bg-black/35 px-4 py-3 text-emerald-300/90"
+                  key={line}
+                  style={{ animation: `fadeUp 0.55s ease ${index * 0.1}s both` }}
+                >
+                  {line}
+                </div>
+              ))}
+            </div>
+          </article>
+        </section>
+
+        <section className="mx-auto w-full max-w-[1480px] px-6 py-8">
+          <div className="flex flex-col items-start justify-between gap-4 border-b border-white/10 pb-5 md:flex-row md:items-end">
+            <div>
+              <p className="text-xs uppercase tracking-[0.22em] text-white/35">Core surfaces</p>
+              <h2 className="mt-2 text-4xl font-black tracking-[-0.04em] text-white md:text-5xl">
+                A cold, high-contrast interface for agentic commerce.
+              </h2>
+            </div>
+            <p className="max-w-xl text-sm leading-7 text-white/55 md:text-right">
+              Recommendation, negotiation, and execution are presented as linked surfaces with low
+              visual noise and high operational density.
+            </p>
+          </div>
+          <div className="mt-6 grid gap-5 lg:grid-cols-3">
+            {capabilityCards.map((card, index) => (
+              <article
+                className="group relative overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-2xl transition duration-300 hover:border-white/18 hover:bg-white/[0.055]"
+                key={card.title}
+                style={{ animation: `fadeUp 0.7s ease ${index * 0.08}s both` }}
+              >
+                <div className="pointer-events-none absolute -bottom-20 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-indigo-500/0 blur-3xl transition duration-300 group-hover:bg-indigo-500/18" />
+                <div className="pointer-events-none absolute inset-x-16 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent)] opacity-0 transition group-hover:opacity-100" />
+                <p className="text-xs uppercase tracking-[0.22em] text-white/35">{card.eyebrow}</p>
+                <h3 className="mt-2 text-2xl font-black tracking-[-0.03em] text-white">{card.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-white/55">{card.copy}</p>
+                <div className="mt-5 overflow-hidden rounded-[24px] border border-white/10 bg-black/40">
+                  <Image
+                    alt={card.title}
+                    className="h-auto w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+                    height={760}
+                    src={card.image}
+                    width={1080}
+                  />
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="mx-auto w-full max-w-[1480px] px-6 py-14">
+          <div className="relative overflow-hidden rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] px-6 py-10 backdrop-blur-2xl md:px-10">
+            <div className="pointer-events-none absolute left-1/2 top-0 h-px w-2/3 -translate-x-1/2 bg-[linear-gradient(90deg,transparent,rgba(125,211,252,0.8),transparent)]" />
+            <p className="text-xs uppercase tracking-[0.22em] text-white/35">Final call</p>
+            <h2 className="mt-3 max-w-4xl text-4xl font-black tracking-[-0.04em] text-white md:text-6xl">
+              Stop browsing like a shopper. Start operating like a buying desk.
+            </h2>
+            <p className="mt-5 max-w-3xl text-lg leading-8 text-white/58">
+              Move from vague product discovery to explicit procurement logic. Search, compare,
+              bargain, and order through a single AI-native surface.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Link
+                className="inline-flex h-12 items-center rounded-2xl bg-white px-6 text-sm font-bold text-black transition hover:bg-white/90"
+                href="/chat"
+              >
+                Open the Console
+              </Link>
+              <button
+                className="inline-flex h-12 items-center rounded-2xl border border-white/12 bg-white/5 px-6 text-sm font-semibold text-white/80 backdrop-blur-xl transition hover:border-white/20 hover:bg-white/8"
+                onClick={() => setAuthOpen(true)}
+                type="button"
+              >
+                Authenticate
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
 
       <AuthModal
         onAuthSuccess={() => {
@@ -167,6 +330,19 @@ export default function HomePage() {
         onClose={() => setAuthOpen(false)}
         open={authOpen}
       />
+
+      <style jsx global>{`
+        @keyframes fadeUp {
+          from {
+            opacity: 0;
+            transform: translateY(12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </main>
   );
 }

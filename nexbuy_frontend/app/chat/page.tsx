@@ -28,6 +28,8 @@ import {
   writeNegotiationRun,
   type NegotiatedDeal,
 } from "@/lib/negotiation-store";
+import AuthModal from "@/src/components/AuthModal";
+import Navbar from "@/src/components/Navbar";
 
 type FriendlyEvent = {
   title: string;
@@ -163,6 +165,8 @@ export default function ChatWorkspacePage() {
   const [plans, setPlans] = useState<PlanOption[]>(restoredWorkspace?.plans ?? []);
   const [activePlanId, setActivePlanId] = useState<string | null>(restoredWorkspace?.activePlanId ?? null);
   const [showOrderConfirm, setShowOrderConfirm] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderResult, setOrderResult] = useState<MockOrderResponse | null>(restoredWorkspace?.orderResult ?? null);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -253,6 +257,7 @@ export default function ChatWorkspacePage() {
 
       try {
         await fetchCurrentUser(token);
+        setIsAuthenticated(true);
         const memory = await fetchMemoryProfile();
         if (memory.onboarding_required) {
           const questions = await fetchOnboardingQuestions();
@@ -279,6 +284,7 @@ export default function ChatWorkspacePage() {
         }
       } catch (bootstrapError) {
         clearAccessToken();
+        setIsAuthenticated(false);
         const message =
           bootstrapError instanceof Error
             ? bootstrapError.message
@@ -864,7 +870,16 @@ export default function ChatWorkspacePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f8f8f6] px-4 py-5 text-[#1f2937] md:px-6">
+    <main className="min-h-screen bg-[#f8f8f6] px-4 pb-5 pt-24 text-[#1f2937] md:px-6">
+      <Navbar
+        isAuthenticated={isAuthenticated}
+        onOpenAuth={() => setAuthOpen(true)}
+        onSignOut={() => {
+          clearAccessToken();
+          setIsAuthenticated(false);
+          router.push("/");
+        }}
+      />
       <div className="mx-auto grid w-full max-w-[1500px] gap-4 lg:grid-cols-[1.25fr_0.75fr]">
         <section className="flex min-h-[86vh] flex-col rounded-[28px] border border-[#e8e6e1] bg-white p-4 shadow-sm md:p-6">
           <div className="flex items-center justify-between border-b border-[#ece9e3] pb-4">
@@ -1492,6 +1507,14 @@ export default function ChatWorkspacePage() {
           </div>
         </div>
       ) : null}
+      <AuthModal
+        onAuthSuccess={() => {
+          setIsAuthenticated(true);
+          setAuthOpen(false);
+        }}
+        onClose={() => setAuthOpen(false)}
+        open={authOpen}
+      />
     </main>
   );
 }

@@ -16,6 +16,8 @@ import {
   type NegotiationTurn,
 } from "@/lib/negotiation-api";
 import { readNegotiationRuns, writeNegotiatedDeal, writeNegotiationRun } from "@/lib/negotiation-store";
+import AuthModal from "@/src/components/AuthModal";
+import Navbar from "@/src/components/Navbar";
 
 type ChatBubble = {
   id: string;
@@ -102,6 +104,8 @@ export default function NegotiationPage() {
   const [manualMessages, setManualMessages] = useState<ChatBubble[]>([]);
   const [agentMessages, setAgentMessages] = useState<ChatBubble[]>([]);
   const [mode, setMode] = useState<"manual" | "agent">("agent");
+  const [authOpen, setAuthOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [targetPrice, setTargetPrice] = useState("");
   const [maxAcceptablePrice, setMaxAcceptablePrice] = useState("");
@@ -171,8 +175,10 @@ export default function NegotiationPage() {
 
       try {
         await fetchCurrentUser(token);
+        setIsAuthenticated(true);
       } catch {
         clearAccessToken();
+        setIsAuthenticated(false);
         setError("Session expired. Please sign in again.");
         setStatus("Negotiation unavailable.");
         return;
@@ -446,7 +452,16 @@ export default function NegotiationPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#f8efe2_0%,#f4efe8_42%,#ece7df_100%)] px-4 py-6 text-[#231f1a] md:px-6">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#f8efe2_0%,#f4efe8_42%,#ece7df_100%)] px-4 pb-6 pt-24 text-[#231f1a] md:px-6">
+      <Navbar
+        isAuthenticated={isAuthenticated}
+        onOpenAuth={() => setAuthOpen(true)}
+        onSignOut={() => {
+          clearAccessToken();
+          setIsAuthenticated(false);
+          router.push("/");
+        }}
+      />
       <div className="mx-auto grid w-full max-w-7xl gap-5 xl:grid-cols-[1.5fr_0.6fr]">
         <section className="flex min-h-[84vh] flex-col rounded-[30px] border border-[#eadfce] bg-white p-4 shadow-[0_24px_80px_rgba(58,39,15,0.08)] md:p-5 lg:p-6">
           <div className="flex items-center justify-between border-b border-[#efe7da] pb-4">
@@ -727,6 +742,14 @@ export default function NegotiationPage() {
           </div>
         </aside>
       </div>
+      <AuthModal
+        onAuthSuccess={() => {
+          setIsAuthenticated(true);
+          setAuthOpen(false);
+        }}
+        onClose={() => setAuthOpen(false)}
+        open={authOpen}
+      />
     </main>
   );
 }
