@@ -270,6 +270,8 @@ export default function ChatWorkspacePage() {
         }
 
         if (eventPayload.type === "message") {
+          setStreamText("");
+          streamTextRef.current = "";
           setMessages((current) => [...current, eventPayload.message]);
           return;
         }
@@ -612,141 +614,243 @@ export default function ChatWorkspacePage() {
       </div>
       <section className="mx-auto mt-4 w-full max-w-[1500px] rounded-[28px] border border-[#dfd8cb] bg-[#f8f5ef] p-4 md:p-5">
         <div className="flex items-center justify-between gap-4 border-b border-[#ddd5c8] pb-3">
-          <h3 className="text-base font-semibold text-[#6d5d49]">Search results</h3>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#b78d59]">AI Proposal Linkage Console</p>
+            <h3 className="mt-1 text-base font-semibold text-[#6d5d49]">Decision layer + execution layer</h3>
+          </div>
           {orderResult ? (
             <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
               Order placed: {orderResult.order_id}
             </span>
           ) : null}
         </div>
-        <div className="mt-3 grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
-          <div className="space-y-3">
-            {displayedPlans.length === 0 ? (
-              <p className="text-sm text-slate-500">No result bundle yet.</p>
-            ) : (
-              <div className="space-y-4">
-                {displayedPlans.map((plan) => (
-                  <section className="space-y-2" key={plan.id}>
-                    <article className="rounded-xl border border-[#e5dfd3] bg-white p-3">
-                      <p className="text-sm font-medium text-slate-800">{plan.title}</p>
-                      <p className="mt-1 text-xs text-slate-600">{plan.summary}</p>
+        <div className="mt-5 space-y-5">
+          {displayedPlans.length === 0 ? (
+            <p className="text-sm text-slate-500">No result bundle yet.</p>
+          ) : (
+            <>
+              <div className="grid gap-4 xl:grid-cols-3">
+                {displayedPlans.map((plan) => {
+                  const isActive = activePlan?.id === plan.id;
+                  return (
+                    <button
+                      className={`rounded-[26px] border p-4 text-left transition ${
+                        isActive
+                          ? "border-[#c9b08d] bg-white shadow-[0_14px_36px_rgba(81,59,28,0.10)]"
+                          : "border-[#ded5c8] bg-[#fbf8f3] hover:border-[#cfbea7]"
+                      }`}
+                      key={plan.id}
+                      onClick={() => setActivePlanId(plan.id)}
+                      type="button"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b78d59]">
+                            {isActive ? "Active bundle" : "Bundle option"}
+                          </p>
+                          <h4 className="mt-2 text-xl font-black text-[#2f271f]">{plan.title}</h4>
+                        </div>
+                        <span className="rounded-full bg-[#edf5ff] px-3 py-1 text-xs font-semibold text-[#2b628f]">
+                          {Math.round(plan.confidence * 100)}% match
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-[#6a5f53]">{plan.summary}</p>
                       {plan.explanation ? (
-                        <p className="mt-2 rounded-lg border border-[#e5dfd3] bg-[#fcfbf8] p-2 text-xs text-slate-700">
+                        <p className="mt-3 rounded-2xl border border-[#ece4d7] bg-[#fcfaf7] px-3 py-3 text-xs leading-6 text-[#74685a]">
                           {plan.explanation}
                         </p>
                       ) : null}
-                      <p className="mt-2 text-xs text-[#3f5970]">
-                        Total: ${plan.totalPrice.toLocaleString()} | Confidence:{" "}
-                        {Math.round(plan.confidence * 100)}%
-                      </p>
-                      <button
-                        className="mt-3 rounded-xl bg-[#2f6fa3] px-3 py-2 text-xs font-semibold text-white hover:bg-[#285f8d]"
-                        onClick={() => {
-                          setActivePlanId(plan.id);
-                          setShowOrderConfirm(true);
-                        }}
-                        type="button"
-                      >
-                        Place order
-                      </button>
-                    </article>
-                    <div className="grid gap-2 md:grid-cols-3">
-                      {plan.items.map((item) => (
-                        <article className="rounded-xl border border-[#e5dfd3] bg-white p-2" key={`${plan.id}-${item.sku}`}>
-                          {item.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              alt={item.title}
-                              className="h-28 w-full rounded-lg border border-slate-200 object-cover"
-                              src={item.imageUrl}
-                            />
-                          ) : null}
-                          <p className="mt-2 text-xs font-semibold text-slate-800">{item.title}</p>
-                          {negotiatedDeals[item.sku] ? (
-                            <p className="mt-1 text-[11px] font-semibold text-emerald-700">
-                              Bargained to ${item.price.toLocaleString()}
-                            </p>
-                          ) : null}
-                          <div className="mt-1 flex items-center justify-between">
-                            <div>
-                              <p className="text-xs font-semibold text-slate-900">
-                                ${item.price.toLocaleString()}
-                              </p>
-                              {negotiatedDeals[item.sku] ? (
-                                <p className="text-[11px] text-slate-400 line-through">
-                                  ${negotiatedDeals[item.sku].originalPrice.toLocaleString()}
-                                </p>
-                              ) : null}
-                            </div>
-                            {item.productUrl ? (
-                              <a
-                                className="text-[11px] font-medium text-[#2f6fa3] hover:underline"
-                                href={item.productUrl}
-                                rel="noreferrer"
-                                target="_blank"
-                              >
-                                View
-                              </a>
-                            ) : null}
+                      <div className="mt-4 grid grid-cols-3 gap-2">
+                        {plan.items.slice(0, 3).map((item) => (
+                          <div className="overflow-hidden rounded-2xl border border-[#ede4d7] bg-[#f8f4ed]" key={`${plan.id}-${item.sku}-thumb`}>
+                            {item.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                alt={item.title}
+                                className="h-20 w-full object-cover"
+                                src={item.imageUrl}
+                              />
+                            ) : (
+                              <div className="h-20 w-full bg-[linear-gradient(135deg,#ddd5c7,#f8f4ee)]" />
+                            )}
                           </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 flex items-end justify-between gap-3">
+                        <div>
+                          <p className="text-xs text-[#8b7d70]">Bundle total</p>
+                          <p className="text-3xl font-black text-[#2f271f]">${plan.totalPrice.toLocaleString()}</p>
+                        </div>
+                        <span
+                          className={`rounded-2xl px-3 py-2 text-xs font-semibold ${
+                            isActive
+                              ? "bg-[#2f6fa3] text-white"
+                              : "border border-[#cfbfaa] text-[#6e563d]"
+                          }`}
+                        >
+                          {isActive ? "Selected" : "Inspect"}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
+                <div className="rounded-[28px] border border-[#dfd8cb] bg-white p-4 shadow-[0_18px_50px_rgba(81,59,28,0.08)] md:p-5">
+                  {activePlan ? (
+                    <>
+                      <div className="flex flex-col gap-4 border-b border-[#ece4d7] pb-4 md:flex-row md:items-end md:justify-between">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#b78d59]">Execution Layer</p>
+                          <h4 className="mt-2 text-3xl font-black text-[#2b241e]">{activePlan.title}</h4>
+                          <p className="mt-2 max-w-3xl text-sm leading-7 text-[#6f6255]">{activePlan.summary}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
                           <button
-                            className="mt-2 w-full rounded-lg border border-[#cdbca7] bg-[#f6ecdd] px-3 py-2 text-[11px] font-semibold text-[#6b4f2b] hover:bg-[#f2e3cc]"
-                            onClick={() => handleOpenItemNegotiation(plan, item)}
+                            className="rounded-2xl bg-[#2f6fa3] px-4 py-3 text-sm font-semibold text-white hover:bg-[#285f8d]"
+                            onClick={() => setShowOrderConfirm(true)}
                             type="button"
                           >
-                            {negotiatedDeals[item.sku] ? "Bargain again" : "Try bargain"}
+                            Place order
                           </button>
-                        </article>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="rounded-2xl border border-[#e5dfd3] bg-white p-3">
-            <h4 className="text-sm font-semibold text-[#6d5d49]">Action panel</h4>
-            {activePlan ? (
-              <div className="mt-2 rounded-xl border border-[#ece6dc] bg-[#faf7f2] p-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-[#8a745c]">Selected plan</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{activePlan.title}</p>
-                <p className="mt-1 text-xs text-slate-600">
-                  Lead item for bargaining: {activePlan.items[0]?.title ?? "N/A"}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    className="rounded-xl bg-[#2f6fa3] px-3 py-2 text-xs font-semibold text-white hover:bg-[#285f8d]"
-                    onClick={() => setShowOrderConfirm(true)}
-                    type="button"
-                  >
-                    Place order
-                  </button>
-                  <button
-                    className="rounded-xl border border-[#cdbca7] bg-[#f6ecdd] px-3 py-2 text-xs font-semibold text-[#6b4f2b] hover:bg-[#f2e3cc] disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={activePlan.items.length === 0}
-                    onClick={handleOpenNegotiation}
-                    type="button"
-                  >
-                    Try bargain
-                  </button>
+                          <button
+                            className="rounded-2xl border border-[#d5c4ae] bg-[#f8f1e6] px-4 py-3 text-sm font-semibold text-[#6f5433] hover:bg-[#f2e4cf] disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={activePlan.items.length === 0}
+                            onClick={handleOpenNegotiation}
+                            type="button"
+                          >
+                            AI auto bargain
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {activePlan.items.map((item) => (
+                          <article className="rounded-[24px] border border-[#ece3d5] bg-[#fcfaf7] p-3 transition hover:shadow-[0_12px_24px_rgba(83,63,38,0.06)]" key={`${activePlan.id}-${item.sku}`}>
+                            {item.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                alt={item.title}
+                                className="aspect-[4/3] w-full rounded-[20px] border border-slate-200 object-cover"
+                                src={item.imageUrl}
+                              />
+                            ) : (
+                              <div className="aspect-[4/3] w-full rounded-[20px] bg-[linear-gradient(135deg,#ddd5c7,#f8f4ee)]" />
+                            )}
+                            <div className="mt-3 flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-bold text-[#2f271f]">{item.title}</p>
+                                <p className="mt-1 text-xs leading-5 text-[#7b6e61]">{item.reason}</p>
+                              </div>
+                              {negotiatedDeals[item.sku] ? (
+                                <span className="rounded-full bg-[#e6f4e8] px-2 py-1 text-[11px] font-semibold text-[#43714c]">
+                                  Negotiated
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="mt-4 flex items-end justify-between gap-3">
+                              <div>
+                                <p className="text-2xl font-black text-[#2f271f]">${item.price.toLocaleString()}</p>
+                                {negotiatedDeals[item.sku] ? (
+                                  <p className="text-xs text-[#a09689] line-through">
+                                    ${negotiatedDeals[item.sku].originalPrice.toLocaleString()}
+                                  </p>
+                                ) : null}
+                              </div>
+                              <div className="flex flex-col items-end gap-2">
+                                {item.productUrl ? (
+                                  <a
+                                    className="text-[11px] font-medium text-[#2f6fa3] hover:underline"
+                                    href={item.productUrl}
+                                    rel="noreferrer"
+                                    target="_blank"
+                                  >
+                                    View
+                                  </a>
+                                ) : null}
+                                <button
+                                  className="rounded-xl border border-[#d5c4ae] bg-white px-3 py-2 text-xs font-semibold text-[#6f5433] hover:bg-[#f5ecdf]"
+                                  onClick={() => handleOpenItemNegotiation(activePlan, item)}
+                                  type="button"
+                                >
+                                  {negotiatedDeals[item.sku] ? "Bargain again" : "Try bargain"}
+                                </button>
+                              </div>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </>
+                  ) : null}
                 </div>
+
+                <aside className="rounded-[28px] border border-[#d7d0c4] bg-[linear-gradient(180deg,#353942_0%,#292d34_100%)] p-4 text-white shadow-[0_18px_50px_rgba(29,24,20,0.18)] md:p-5">
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#f0c690]">Global Action Rail</p>
+                  <h4 className="mt-2 text-3xl font-black">Decision Snapshot</h4>
+                  {activePlan ? (
+                    <>
+                      <div className="mt-5 rounded-[24px] border border-white/10 bg-white/5 p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-[#d6c2a8]">Current total</p>
+                        <p className="mt-2 text-4xl font-black">${activePlan.totalPrice.toLocaleString()}</p>
+                        <p className="mt-2 text-sm leading-6 text-[#d0c4b6]">
+                          Compare at the bundle level first, then negotiate item-level pricing without losing the global picture.
+                        </p>
+                      </div>
+                      <div className="mt-4 space-y-3">
+                        <div className="rounded-[20px] bg-white/5 p-4">
+                          <p className="text-xs uppercase tracking-[0.18em] text-[#c9b39a]">AI recommendation signal</p>
+                          <p className="mt-2 text-sm font-semibold">{Math.round(activePlan.confidence * 100)}% fit score</p>
+                          <p className="mt-1 text-xs leading-5 text-[#d6c9bc]">
+                            Confidence and explanation expose the backend ranking logic instead of hiding it.
+                          </p>
+                        </div>
+                        <div className="rounded-[20px] bg-white/5 p-4">
+                          <p className="text-xs uppercase tracking-[0.18em] text-[#c9b39a]">Recommended next action</p>
+                          <p className="mt-2 text-sm font-semibold">
+                            {activePlan.items.some((item) => negotiatedDeals[item.sku])
+                              ? "Review negotiated items, then decide whether to place the order."
+                              : "Launch AI auto bargain on the lead item or go straight to checkout."}
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
+                  <div className="mt-5 flex flex-col gap-2">
+                    <button
+                      className="rounded-2xl bg-[#f2c188] px-4 py-3 text-sm font-bold text-[#2f241a] hover:bg-[#e9b674] disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={!activePlan}
+                      onClick={() => setShowOrderConfirm(true)}
+                      type="button"
+                    >
+                      Proceed to checkout
+                    </button>
+                    <button
+                      className="rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold text-white hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={!activePlan || activePlan.items.length === 0}
+                      onClick={handleOpenNegotiation}
+                      type="button"
+                    >
+                      Open AI auto bargain
+                    </button>
+                  </div>
+                  <div className="mt-5 rounded-[20px] border border-white/10 bg-white/5 p-4 text-xs leading-6 text-[#d6c9bc]">
+                    {orderResult ? (
+                      <>
+                        <p className="font-semibold text-white">Order status</p>
+                        <p className="mt-2">Order ID: {orderResult.order_id}</p>
+                        <p>Tracking: {orderResult.tracking_number}</p>
+                        <p>Carrier: {orderResult.carrier}</p>
+                        <p>Total: ${orderResult.total_amount.toLocaleString()} {orderResult.currency}</p>
+                      </>
+                    ) : (
+                      <p>No order placed yet. Use the action rail to negotiate or move directly to checkout.</p>
+                    )}
+                  </div>
+                </aside>
               </div>
-            ) : null}
-            <h5 className="mt-4 text-sm font-semibold text-[#6d5d49]">Order status</h5>
-            {orderResult ? (
-              <div className="mt-2 space-y-1 text-xs text-slate-700">
-                <p>Order ID: {orderResult.order_id}</p>
-                <p>Tracking: {orderResult.tracking_number}</p>
-                <p>Carrier: {orderResult.carrier}</p>
-                <p>ETA: {orderResult.estimated_delivery_date}</p>
-                <p>Total: ${orderResult.total_amount.toLocaleString()} {orderResult.currency}</p>
-                <p>Status: {orderResult.order_status} / {orderResult.payment_status}</p>
-                <p>{orderResult.warehouse_note}</p>
-              </div>
-            ) : (
-              <p className="mt-2 text-xs text-slate-500">No order placed yet.</p>
-            )}
-          </div>
+            </>
+          )}
         </div>
       </section>
       {showOrderConfirm && activePlan ? (
