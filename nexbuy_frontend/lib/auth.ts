@@ -16,7 +16,7 @@ type OAuthAuthorizeResponse = {
 };
 
 const ACCESS_TOKEN_KEY = "nexbuy.access_token";
-const DEFAULT_API_BASE_URL = "http://localhost:8000/api";
+const DEFAULT_API_BASE_URL = "/api";
 
 export function getApiBaseUrl() {
   const configuredBaseUrl =
@@ -156,7 +156,7 @@ function readErrorMessage(payload: unknown, fallbackMessage: string) {
     const detail = payload.detail;
 
     if (typeof detail === "string") {
-      return detail;
+      return mapAuthErrorMessage(detail, fallbackMessage);
     }
 
     if (Array.isArray(detail) && detail.length > 0) {
@@ -168,14 +168,31 @@ function readErrorMessage(payload: unknown, fallbackMessage: string) {
         "msg" in firstIssue &&
         typeof firstIssue.msg === "string"
       ) {
-        return firstIssue.msg;
+        return mapAuthErrorMessage(firstIssue.msg, fallbackMessage);
       }
     }
   }
 
   if ("message" in payload && typeof payload.message === "string") {
-    return payload.message;
+    return mapAuthErrorMessage(payload.message, fallbackMessage);
   }
 
   return fallbackMessage;
+}
+
+function mapAuthErrorMessage(message: string, fallbackMessage: string) {
+  const authErrorMap: Record<string, string> = {
+    LOGIN_BAD_CREDENTIALS: "Incorrect email or password.",
+    REGISTER_USER_ALREADY_EXISTS: "This email is already registered. Try signing in instead.",
+    USER_ALREADY_EXISTS: "This email is already registered. Try signing in instead.",
+    INVALID_PASSWORD_EXCEPTION: "Password does not meet the required format.",
+    OAUTH_USER_ALREADY_EXISTS: "This email is already linked to an existing account.",
+    OAUTH_NOT_AVAILABLE_EMAIL: "The provider did not return a usable email address.",
+    OAUTH_INVALID_STATE: "The sign-in session expired. Please try again.",
+    OAUTH_CALLBACK_ERROR: "Third-party sign-in could not be completed. Please try again.",
+    VERIFY_USER_BAD_TOKEN: "This verification link is invalid or has expired.",
+    RESET_PASSWORD_BAD_TOKEN: "This reset link is invalid or has expired.",
+  };
+
+  return authErrorMap[message] ?? message ?? fallbackMessage;
 }

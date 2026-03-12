@@ -12,7 +12,7 @@ import {
 type AuthMode = "login" | "register";
 
 type Props = {
-  onSuccess?: () => void;
+  onSuccess?: () => void | Promise<void>;
 };
 
 export default function AuthForm({ onSuccess }: Props) {
@@ -22,6 +22,17 @@ export default function AuthForm({ onSuccess }: Props) {
   const [isBusy, setIsBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  function switchMode(nextMode: AuthMode, options?: { preserveEmail?: boolean }) {
+    setMode(nextMode);
+    setError("");
+    setMessage("");
+    setPassword("");
+
+    if (!options?.preserveEmail) {
+      setEmail("");
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,15 +44,15 @@ export default function AuthForm({ onSuccess }: Props) {
       if (mode === "register") {
         const user = await registerWithEmail(email, password);
         setMessage(`Account created for ${user.email}. You can sign in now.`);
-        setMode("login");
-        setPassword("");
+        switchMode("login", { preserveEmail: true });
+        setMessage(`Account created for ${user.email}. You can sign in now.`);
         return;
       }
 
       const token = await loginWithEmail(email, password);
       saveAccessToken(token);
       setMessage("Signed in successfully.");
-      onSuccess?.();
+      await onSuccess?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Authentication failed.");
     } finally {
@@ -85,7 +96,7 @@ export default function AuthForm({ onSuccess }: Props) {
               ? "bg-[#101828] text-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]"
               : "text-[#667085] hover:text-[#344054]"
           }`}
-          onClick={() => setMode("login")}
+          onClick={() => switchMode("login")}
           type="button"
         >
           Sign In
@@ -96,7 +107,7 @@ export default function AuthForm({ onSuccess }: Props) {
               ? "bg-[#101828] text-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]"
               : "text-[#667085] hover:text-[#344054]"
           }`}
-          onClick={() => setMode("register")}
+          onClick={() => switchMode("register")}
           type="button"
         >
           Register

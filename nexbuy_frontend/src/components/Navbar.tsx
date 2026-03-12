@@ -21,6 +21,7 @@ export default function Navbar({ onOpenAuth, onSignOut, isAuthenticated, isBlurr
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const profileCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -34,8 +35,31 @@ export default function Navbar({ onOpenAuth, onSignOut, isAuthenticated, isBlurr
     }
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      if (profileCloseTimerRef.current) {
+        clearTimeout(profileCloseTimerRef.current);
+      }
+    };
   }, []);
+
+  function openProfileMenu() {
+    if (profileCloseTimerRef.current) {
+      clearTimeout(profileCloseTimerRef.current);
+      profileCloseTimerRef.current = null;
+    }
+    setProfileOpen(true);
+  }
+
+  function closeProfileMenuWithDelay() {
+    if (profileCloseTimerRef.current) {
+      clearTimeout(profileCloseTimerRef.current);
+    }
+    profileCloseTimerRef.current = setTimeout(() => {
+      setProfileOpen(false);
+      profileCloseTimerRef.current = null;
+    }, 180);
+  }
 
   return (
     <header className="fixed inset-x-0 top-0 z-[80]">
@@ -61,8 +85,8 @@ export default function Navbar({ onOpenAuth, onSignOut, isAuthenticated, isBlurr
             {isAuthenticated ? (
               <div
                 className="relative hidden md:block"
-                onMouseEnter={() => setProfileOpen(true)}
-                onMouseLeave={() => setProfileOpen(false)}
+                onMouseEnter={openProfileMenu}
+                onMouseLeave={closeProfileMenuWithDelay}
               >
                 <button
                   aria-label="Open user menu"
@@ -82,7 +106,9 @@ export default function Navbar({ onOpenAuth, onSignOut, isAuthenticated, isBlurr
                 </button>
 
                 {profileOpen ? (
-                  <div className="absolute right-0 top-14 w-[220px] rounded-[24px] border border-[#dce3ed] bg-white p-3 shadow-[0_20px_60px_rgba(148,163,184,0.16)]">
+                  <div className="absolute right-0 top-full z-20 w-[220px] pt-3">
+                    <div className="absolute inset-x-0 top-0 h-3" />
+                    <div className="rounded-[24px] border border-[#dce3ed] bg-white p-3 shadow-[0_20px_60px_rgba(148,163,184,0.16)]">
                     <div className="space-y-1">
                       <button
                         className="block w-full rounded-2xl px-3 py-3 text-left text-sm font-semibold text-[#344054] transition hover:bg-[#f3f6fa]"
@@ -109,6 +135,7 @@ export default function Navbar({ onOpenAuth, onSignOut, isAuthenticated, isBlurr
                         Sign out
                       </button>
                     </div>
+                  </div>
                   </div>
                 ) : null}
               </div>
