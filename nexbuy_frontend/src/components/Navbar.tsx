@@ -110,13 +110,13 @@ export default function Navbar({ onOpenAuth, onSignOut, isAuthenticated, isBlurr
                     <div className="absolute inset-x-0 top-0 h-3" />
                     <div className="rounded-[24px] border border-[#dce3ed] bg-white p-3 shadow-[0_20px_60px_rgba(148,163,184,0.16)]">
                     <div className="space-y-1">
-                      <button
+                      <Link
                         className="block w-full rounded-2xl px-3 py-3 text-left text-sm font-semibold text-[#344054] transition hover:bg-[#f3f6fa]"
+                        href="/profile"
                         onClick={() => setProfileOpen(false)}
-                        type="button"
                       >
                         Personal Details
-                      </button>
+                      </Link>
                       <button
                         className="block w-full rounded-2xl px-3 py-3 text-left text-sm font-semibold text-[#344054] transition hover:bg-[#f3f6fa]"
                         onClick={() => setProfileOpen(false)}
@@ -173,13 +173,13 @@ export default function Navbar({ onOpenAuth, onSignOut, isAuthenticated, isBlurr
                 </div>
                 {isAuthenticated ? (
                   <div className="mt-3 space-y-1 border-t border-[#e8edf3] pt-3">
-                    <button
+                    <Link
                       className="block w-full rounded-2xl px-3 py-2 text-left text-sm font-semibold text-[#344054] transition hover:bg-[#f3f6fa]"
+                      href="/profile"
                       onClick={() => setMenuOpen(false)}
-                      type="button"
                     >
                       Personal Details
-                    </button>
+                    </Link>
                     <button
                       className="block w-full rounded-2xl px-3 py-2 text-left text-sm font-semibold text-[#344054] transition hover:bg-[#f3f6fa]"
                       onClick={() => setMenuOpen(false)}
