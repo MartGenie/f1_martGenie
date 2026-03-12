@@ -454,6 +454,7 @@ export default function NegotiationPage() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#f8efe2_0%,#f4efe8_42%,#ece7df_100%)] px-4 pb-6 pt-24 text-[#231f1a] md:px-6">
       <Navbar
+        isBlurred={authOpen}
         isAuthenticated={isAuthenticated}
         onOpenAuth={() => setAuthOpen(true)}
         onSignOut={() => {

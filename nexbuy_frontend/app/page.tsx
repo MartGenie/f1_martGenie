@@ -156,6 +156,7 @@ export default function HomePage() {
 
       <div className="relative">
         <Navbar
+          isBlurred={authOpen}
           isAuthenticated={isAuthenticated}
           onOpenAuth={() => setAuthOpen(true)}
           onSignOut={handleSignOut}

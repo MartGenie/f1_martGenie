@@ -63,15 +63,27 @@ export default function AuthForm({ onSuccess }: Props) {
   }
 
   return (
-    <div className="w-full max-w-[640px] rounded-2xl bg-white p-6 shadow-xl">
-      <div className="mb-5 flex items-center justify-between">
-        <h3 className="text-3xl font-bold text-[#2d2a27]">Sign in / Register</h3>
+    <div className="w-full max-w-[640px] rounded-[32px] border border-[#d9e0ea] bg-[linear-gradient(180deg,#ffffff_0%,#f3f6fa_100%)] p-7 shadow-[0_30px_90px_rgba(148,163,184,0.18)] md:p-8">
+      <div className="mb-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8b97a8]">
+          Welcome
+        </p>
+        <h3 className="mt-3 text-3xl font-black tracking-[-0.04em] text-[#101828] md:text-[2.2rem]">
+          {mode === "login" ? "Welcome back to Nexbuy." : "Create your Nexbuy account."}
+        </h3>
+        <p className="mt-3 max-w-[34rem] text-base leading-7 text-[#667085]">
+          {mode === "login"
+            ? "Sign in to continue your shopping workflow across chat, recommendations, and negotiation."
+            : "Set up your account to save preferences, follow recommendations, and continue deals across sessions."}
+        </p>
       </div>
 
-      <div className="grid grid-cols-2 rounded-xl bg-[#f3f3f3] p-1">
+      <div className="grid grid-cols-2 rounded-2xl border border-[#d7dee8] bg-[#eef2f6] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
         <button
-          className={`rounded-lg px-4 py-2 text-base font-semibold ${
-            mode === "login" ? "bg-[#1f1f1f] text-white" : "text-[#5d5d5d]"
+          className={`rounded-xl px-4 py-2.5 text-base font-semibold transition ${
+            mode === "login"
+              ? "bg-[#101828] text-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]"
+              : "text-[#667085] hover:text-[#344054]"
           }`}
           onClick={() => setMode("login")}
           type="button"
@@ -79,8 +91,10 @@ export default function AuthForm({ onSuccess }: Props) {
           Sign In
         </button>
         <button
-          className={`rounded-lg px-4 py-2 text-base font-semibold ${
-            mode === "register" ? "bg-[#1f1f1f] text-white" : "text-[#5d5d5d]"
+          className={`rounded-xl px-4 py-2.5 text-base font-semibold transition ${
+            mode === "register"
+              ? "bg-[#101828] text-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]"
+              : "text-[#667085] hover:text-[#344054]"
           }`}
           onClick={() => setMode("register")}
           type="button"
@@ -92,7 +106,7 @@ export default function AuthForm({ onSuccess }: Props) {
       <form className="mt-5 space-y-3" onSubmit={handleSubmit}>
         <input
           autoComplete="email"
-          className="h-12 w-full rounded-lg border border-[#dedede] px-4 text-base outline-none focus:border-[#8a6f58]"
+          className="h-[52px] w-full rounded-2xl border border-[#d7dee8] bg-white px-4 text-base text-[#101828] outline-none transition placeholder:text-[#98a2b3] focus:border-[#94a3b8] focus:bg-white"
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Enter email"
           required
@@ -101,7 +115,7 @@ export default function AuthForm({ onSuccess }: Props) {
         />
         <input
           autoComplete={mode === "login" ? "current-password" : "new-password"}
-          className="h-12 w-full rounded-lg border border-[#dedede] px-4 text-base outline-none focus:border-[#8a6f58]"
+          className="h-[52px] w-full rounded-2xl border border-[#d7dee8] bg-white px-4 text-base text-[#101828] outline-none transition placeholder:text-[#98a2b3] focus:border-[#94a3b8] focus:bg-white"
           minLength={3}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Enter password"
@@ -110,7 +124,7 @@ export default function AuthForm({ onSuccess }: Props) {
           value={password}
         />
         <button
-          className="h-12 w-full rounded-lg bg-[#1f1f1f] text-lg font-semibold text-white disabled:opacity-60"
+          className="h-[52px] w-full rounded-2xl bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] text-lg font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.22)] transition hover:brightness-105 disabled:opacity-60"
           disabled={isBusy}
           type="submit"
         >
@@ -119,23 +133,23 @@ export default function AuthForm({ onSuccess }: Props) {
       </form>
 
       <div className="my-4 flex items-center gap-3">
-        <div className="h-px flex-1 bg-[#e6e6e6]" />
-        <span className="text-sm text-[#8f8f8f]">Or continue with other ways</span>
-        <div className="h-px flex-1 bg-[#e6e6e6]" />
+        <div className="h-px flex-1 bg-[#dbe2eb]" />
+        <span className="text-sm text-[#8b97a8]">Or continue with Google</span>
+        <div className="h-px flex-1 bg-[#dbe2eb]" />
       </div>
 
       <button
-        className="flex h-12 w-full items-center justify-center gap-3 rounded-lg border border-[#d8d8d8] text-lg font-semibold text-[#2d2d2d] disabled:opacity-60"
+        className="flex h-[52px] w-full items-center justify-center gap-3 rounded-2xl border border-[#d7dee8] bg-white text-lg font-semibold text-[#101828] shadow-[0_10px_24px_rgba(148,163,184,0.1)] transition hover:border-[#c9d3df] hover:bg-[#fbfcfd] disabled:opacity-60"
         disabled={isBusy}
         onClick={handleGoogle}
         type="button"
       >
         <Image alt="Google" height={20} src="/google.png" width={20} />
-        Continue With Google
+        Continue with Google
       </button>
 
-      {message ? <p className="mt-3 text-sm text-[#2f6f47]">{message}</p> : null}
-      {error ? <p className="mt-3 text-sm text-[#bf2f4a]">{error}</p> : null}
+      {message ? <p className="mt-4 text-sm text-[#156f52]">{message}</p> : null}
+      {error ? <p className="mt-4 text-sm text-[#c24157]">{error}</p> : null}
     </div>
   );
 }

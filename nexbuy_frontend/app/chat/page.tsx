@@ -872,6 +872,7 @@ export default function ChatWorkspacePage() {
   return (
     <main className="min-h-screen bg-[#f8f8f6] px-4 pb-5 pt-24 text-[#1f2937] md:px-6">
       <Navbar
+        isBlurred={authOpen}
         isAuthenticated={isAuthenticated}
         onOpenAuth={() => setAuthOpen(true)}
         onSignOut={() => {

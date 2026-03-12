@@ -7,6 +7,7 @@ type Props = {
   onOpenAuth: () => void;
   onSignOut: () => void;
   isAuthenticated: boolean;
+  isBlurred?: boolean;
 };
 
 const navItems = [
@@ -16,7 +17,7 @@ const navItems = [
   { label: "Plaza", href: "/plaza" },
 ];
 
-export default function Navbar({ onOpenAuth, onSignOut, isAuthenticated }: Props) {
+export default function Navbar({ onOpenAuth, onSignOut, isAuthenticated, isBlurred = false }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -39,7 +40,11 @@ export default function Navbar({ onOpenAuth, onSignOut, isAuthenticated }: Props
   return (
     <header className="fixed inset-x-0 top-0 z-[80]">
       <div className="mx-auto flex w-full max-w-[1480px] items-center justify-between px-4 pt-0 md:px-6">
-        <div className="flex h-[72px] w-full items-center justify-between rounded-b-[24px] bg-[linear-gradient(180deg,#f9fbfd_0%,#e7ebf2_100%)] px-4 text-[#101828] shadow-[0_10px_30px_rgba(148,163,184,0.12)] md:px-5">
+        <div
+          className={`flex h-[72px] w-full items-center justify-between rounded-b-[24px] bg-[linear-gradient(180deg,#f9fbfd_0%,#e7ebf2_100%)] px-4 text-[#101828] shadow-[0_10px_30px_rgba(148,163,184,0.12)] transition duration-200 md:px-5 ${
+            isBlurred ? "scale-[0.995] opacity-70 blur-[6px]" : ""
+          }`}
+        >
           <Link className="flex items-center" href="/">
             <p className="font-mono text-xl font-black uppercase tracking-[0.42em] text-[#0f172a] md:text-2xl">Nexbuy</p>
           </Link>
