@@ -12,6 +12,8 @@ from .chat_router import router as chat_router
 from .memory import models as _memory_models  # noqa: F401
 from .memory.router import router as memory_router
 from .negotiation_router import router as negotiation_router
+from .plaza import models as _plaza_models  # noqa: F401
+from .plaza.router import router as plaza_router
 
 
 @asynccontextmanager
@@ -34,6 +36,7 @@ app.include_router(chat_router, prefix="/api")
 app.include_router(memory_router, prefix="/api")
 app.include_router(negotiation_router, prefix="/api")
 app.include_router(agent_negotiation_router, prefix="/api")
+app.include_router(plaza_router, prefix="/api")
 
 
 @app.get("/health", tags=["system"])

@@ -1,0 +1,58 @@
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.plaza import AgentShowcaseCreateIn, AgentShowcaseDetail, AgentShowcaseMockSeedOut, AgentShowcaseSummary
+from src.plaza.service import create_mock_showcases, create_showcase, get_showcase_detail, list_showcases
+from src.web.auth.db import get_async_session
+from src.web.auth.dependencies import CurrentActiveUser
+from src.web.auth.models import User
+
+
+router = APIRouter(prefix="/plaza", tags=["plaza"])
+
+
+@router.get("/showcase", response_model=list[AgentShowcaseSummary])
+async def fetch_showcases(
+    limit: int = Query(default=20, ge=1, le=100),
+    session: AsyncSession = Depends(get_async_session),
+) -> list[AgentShowcaseSummary]:
+    return await list_showcases(session, limit=limit)
+
+
+@router.get("/showcase/{showcase_id}", response_model=AgentShowcaseDetail)
+async def fetch_showcase_detail(
+    showcase_id: uuid.UUID,
+    session: AsyncSession = Depends(get_async_session),
+) -> AgentShowcaseDetail:
+    detail = await get_showcase_detail(session, showcase_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Showcase record not found.")
+    return detail
+
+
+@router.post("/showcase", response_model=AgentShowcaseDetail, status_code=201)
+async def create_showcase_record(
+    payload: AgentShowcaseCreateIn,
+    user: User = Depends(CurrentActiveUser),
+    session: AsyncSession = Depends(get_async_session),
+) -> AgentShowcaseDetail:
+    try:
+        detail = await create_showcase(session, user=user, payload=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return detail
+
+
+@router.post("/showcase/mock/seed", response_model=AgentShowcaseMockSeedOut, status_code=201)
+async def seed_mock_showcases(
+    session: AsyncSession = Depends(get_async_session),
+) -> AgentShowcaseMockSeedOut:
+    try:
+        created_count = await create_mock_showcases(session)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    total_count = len(await list_showcases(session, limit=100))
+    return AgentShowcaseMockSeedOut(created_count=created_count, total_count=total_count)

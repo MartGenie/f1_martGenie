@@ -338,7 +338,6 @@ export default function HomePage() {
       <AuthModal
         onAuthSuccess={() => {
           setIsAuthenticated(true);
-          setStatusMessage("Signed in. You can now open the workspace.");
         }}
         onClose={() => setAuthOpen(false)}
         open={authOpen}
