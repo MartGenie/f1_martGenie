@@ -173,6 +173,7 @@ export default function ChatWorkspacePage() {
   const [onboardingQuestions, setOnboardingQuestions] = useState<OnboardingQuestion[]>([]);
   const [onboardingAnswers, setOnboardingAnswers] = useState<Record<string, string | string[]>>({});
   const [isSavingOnboarding, setIsSavingOnboarding] = useState(false);
+  const [bootstrapNonce, setBootstrapNonce] = useState(0);
   const [negotiatedDeals, setNegotiatedDeals] = useState<Record<string, NegotiatedDeal>>({});
   const [inlineNegotiations, setInlineNegotiations] = useState<Record<string, InlineNegotiationState>>(
     restoredWorkspace?.inlineNegotiations ?? {},
@@ -257,6 +258,7 @@ export default function ChatWorkspacePage() {
       }
 
       try {
+        setError("");
         await fetchCurrentUser(token);
         setIsAuthenticated(true);
         const memory = await fetchMemoryProfile();
@@ -301,7 +303,7 @@ export default function ChatWorkspacePage() {
       unmounted = true;
       unsubscribeRef.current?.();
     };
-  }, []);
+  }, [bootstrapNonce]);
 
   async function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -877,7 +879,7 @@ export default function ChatWorkspacePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f8f8f6] px-4 pb-5 pt-24 text-[#1f2937] md:px-6">
+    <main className="min-h-screen bg-[linear-gradient(180deg,#f7f9fc_0%,#eef2f7_100%)] px-4 pb-5 pt-24 text-[#101828] md:px-6">
       <Navbar
         isBlurred={authOpen}
         isAuthenticated={isAuthenticated}
@@ -889,14 +891,14 @@ export default function ChatWorkspacePage() {
         }}
       />
       <div className="mx-auto grid w-full max-w-[1500px] gap-4 lg:grid-cols-[1.25fr_0.75fr]">
-        <section className="flex min-h-[86vh] flex-col rounded-[28px] border border-[#e8e6e1] bg-white p-4 shadow-sm md:p-6">
-          <div className="flex items-center justify-between border-b border-[#ece9e3] pb-4">
+        <section className="flex min-h-[86vh] flex-col rounded-[28px] border border-[#dbe3ed] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_18px_50px_rgba(148,163,184,0.12)] md:p-6">
+          <div className="flex items-center justify-between border-b border-[#dce4ee] pb-4">
             <div>
-              <h1 className="text-xl font-semibold tracking-tight md:text-2xl">AI Shopping Assistant</h1>
-              <p className="mt-1 text-sm text-slate-500">{status}</p>
+              <h1 className="text-xl font-semibold tracking-tight text-[#101828] md:text-2xl">AI Shopping Assistant</h1>
+              <p className="mt-1 text-sm text-[#667085]">{status}</p>
             </div>
             <Link
-              className="rounded-full border border-[#d8d4cc] px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-[#bdb7ad] hover:bg-[#f4f2ee]"
+              className="rounded-full border border-[#d2dae5] bg-white px-4 py-2 text-sm font-medium text-[#344054] transition hover:border-[#bcc7d6] hover:bg-[#f8fafc]"
               href="/"
             >
               Back
@@ -905,7 +907,7 @@ export default function ChatWorkspacePage() {
 
           <div className="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
             {renderedMessages.length === 0 ? (
-              <article className="max-w-[80%] rounded-2xl border border-[#d8e6f4] bg-[#eef6ff] px-4 py-3 text-sm text-[#1f4f78]">
+              <article className="max-w-[80%] rounded-2xl border border-[#d6e4f5] bg-[linear-gradient(180deg,#eff6ff_0%,#e0ecff_100%)] px-4 py-3 text-sm text-[#1f4f78] shadow-[0_10px_24px_rgba(59,130,246,0.08)]">
                 Try: &quot;My living room is 20m2, modern warm wood style, budget $3,000, need sofa + TV
                 stand + rug.&quot;
               </article>
@@ -914,18 +916,18 @@ export default function ChatWorkspacePage() {
                 <article
                   className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-7 md:text-[15px] ${
                     message.role === "user"
-                      ? "ml-auto border border-[#d7e6f5] bg-[#ecf5ff] text-[#123b5f]"
-                      : "mr-auto border border-[#e4e4df] bg-[#fafaf8] text-[#2f3540]"
+                      ? "ml-auto border border-[#d6e4f5] bg-[linear-gradient(180deg,#eff6ff_0%,#dbeafe_100%)] text-[#123b5f] shadow-[0_10px_24px_rgba(59,130,246,0.08)]"
+                      : "mr-auto border border-[#e2e8f0] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] text-[#344054] shadow-[0_10px_24px_rgba(148,163,184,0.08)]"
                   }`}
                   key={message.id}
                 >
-                  <p className="mb-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                  <p className="mb-1 text-[10px] uppercase tracking-[0.18em] text-[#98a2b3]">
                     {message.role === "user" ? "You" : "AI"}
                   </p>
                   <p>
                     {message.content}
                     {message.id === "assistant-draft" && isSending ? (
-                      <span className="ml-2 text-xs text-slate-400">({runElapsedSec}s)</span>
+                      <span className="ml-2 text-xs text-[#98a2b3]">({runElapsedSec}s)</span>
                     ) : null}
                   </p>
                 </article>
@@ -933,9 +935,9 @@ export default function ChatWorkspacePage() {
             )}
           </div>
 
-          <form className="mt-4 flex items-end gap-2 border-t border-[#ece9e3] pt-4" onSubmit={handleSend}>
+          <form className="mt-4 flex items-end gap-2 border-t border-[#dce4ee] pt-4" onSubmit={handleSend}>
             <textarea
-              className="min-h-[56px] w-full resize-none rounded-2xl border border-[#dad7d0] bg-[#fbfbf9] px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#9bb7d3]"
+              className="min-h-[56px] w-full resize-none rounded-2xl border border-[#d7dee8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-3 text-sm text-[#101828] outline-none transition placeholder:text-[#98a2b3] focus:border-[#93c5fd] focus:shadow-[0_0_0_4px_rgba(147,197,253,0.18)]"
               disabled={!sessionId || isSending}
               onChange={(event) => setPrompt(event.target.value)}
               placeholder="Describe your space, style, budget, and must-have items..."
@@ -943,7 +945,7 @@ export default function ChatWorkspacePage() {
               value={prompt}
             />
             <button
-              className="h-[56px] rounded-2xl bg-[#2f6fa3] px-5 text-sm font-semibold text-white transition hover:bg-[#285f8d] disabled:cursor-not-allowed disabled:bg-[#b7c8d8] disabled:text-slate-200"
+              className="h-[56px] rounded-2xl bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-5 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.18)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#b7c8d8] disabled:text-slate-200"
               disabled={!sessionId || isSending || !prompt.trim()}
               type="submit"
             >
@@ -951,7 +953,7 @@ export default function ChatWorkspacePage() {
             </button>
             {isSending ? (
               <button
-                className="h-[56px] rounded-2xl border border-rose-300 bg-rose-50 px-4 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+                className="h-[56px] rounded-2xl border border-[#f3c7cf] bg-[#fff1f3] px-4 text-sm font-semibold text-[#be123c] transition hover:bg-[#ffe4e8]"
                 onClick={handleCancel}
                 type="button"
               >
@@ -959,7 +961,7 @@ export default function ChatWorkspacePage() {
               </button>
             ) : null}
           </form>
-          {error ? <p className="mt-2 text-sm text-rose-600">{error}</p> : null}
+          {error ? <p className="mt-2 text-sm text-[#be123c]">{error}</p> : null}
         </section>
 
         <aside className="h-[86vh] overflow-hidden rounded-[28px] border border-[#dbe3ed] bg-[linear-gradient(180deg,#f8fafd_0%,#eef2f7_100%)] p-4 shadow-[0_18px_50px_rgba(148,163,184,0.12)] md:p-5">
@@ -1080,6 +1082,9 @@ export default function ChatWorkspacePage() {
       <AuthModal
         onAuthSuccess={() => {
           setIsAuthenticated(true);
+          setError("");
+          setStatus("Preparing workspace...");
+          setBootstrapNonce((current) => current + 1);
           setAuthOpen(false);
         }}
         onClose={() => setAuthOpen(false)}
