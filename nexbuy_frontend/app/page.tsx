@@ -122,9 +122,8 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#050505] text-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.18),transparent_30%),radial-gradient(circle_at_80%_20%,rgba(56,189,248,0.14),transparent_24%),radial-gradient(circle_at_bottom,rgba(255,255,255,0.06),transparent_38%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.02),transparent_12%,transparent_88%,rgba(255,255,255,0.02))]" />
+    <main className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#f9fbfd_0%,#e7ebf2_100%)] text-[#101828]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.95),transparent_28%),radial-gradient(circle_at_80%_18%,rgba(191,200,214,0.5),transparent_22%),linear-gradient(180deg,rgba(255,255,255,0.55),transparent_40%)]" />
 
       <div className="relative">
         <Navbar
@@ -137,17 +136,17 @@ export default function HomePage() {
           <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-stretch">
             <div className="flex max-w-4xl flex-col lg:min-h-[620px] lg:justify-between">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/70 backdrop-blur-xl">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#d7dee8] bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#6b7788] backdrop-blur-xl">
                   AI-native procurement stack
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.75)]" />
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_18px_rgba(16,185,129,0.28)]" />
                 </div>
-                <h1 className="mt-8 max-w-4xl text-5xl font-black tracking-[-0.04em] text-white md:text-7xl md:leading-[0.96]">
+                <h1 className="mt-8 max-w-4xl text-5xl font-black tracking-[-0.04em] text-[#101828] md:text-7xl md:leading-[0.96]">
                   The Future of Complex Procurement.
-                  <span className="mt-3 block bg-[linear-gradient(90deg,#ffffff_0%,#c7d2fe_32%,#7dd3fc_68%,#ffffff_100%)] bg-clip-text text-transparent">
+                  <span className="mt-3 block bg-[linear-gradient(90deg,#111827_0%,#4b5563_28%,#7c8da3_58%,#3b82f6_82%,#111827_100%)] bg-clip-text text-transparent">
                     Driven by Multi-Agent Negotiation.
                   </span>
                 </h1>
-                <p className="mt-6 max-w-2xl text-lg leading-8 text-white/60 md:text-xl">
+                <p className="mt-6 max-w-2xl text-lg leading-8 text-[#667085] md:text-xl">
                   Nexbuy turns product discovery, bundle ranking, and price negotiation into a single
                   controlled workflow. It behaves less like a storefront and more like an execution
                   engine for high-value purchase decisions.
@@ -155,12 +154,12 @@ export default function HomePage() {
                 <div className="mt-10 grid gap-3 md:grid-cols-3">
                   {systemHighlights.map((item, index) => (
                     <article
-                      className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl transition duration-300 hover:border-indigo-400/35 hover:bg-white/[0.05] hover:shadow-[0_0_60px_rgba(79,70,229,0.15)]"
+                      className="rounded-[24px] border border-[#dce3ed] bg-white/82 p-4 backdrop-blur-xl transition duration-300 hover:border-[#c2ccd8] hover:bg-white hover:shadow-[0_18px_48px_rgba(148,163,184,0.14)]"
                       key={item.title}
                       style={{ animation: `fadeUp 0.6s ease ${index * 0.08}s both` }}
                     >
-                      <p className="text-sm font-semibold tracking-[-0.02em] text-white">{item.title}</p>
-                      <p className="mt-2 text-sm leading-6 text-white/55">{item.detail}</p>
+                      <p className="text-sm font-semibold tracking-[-0.02em] text-[#101828]">{item.title}</p>
+                      <p className="mt-2 text-sm leading-6 text-[#667085]">{item.detail}</p>
                     </article>
                   ))}
                 </div>
@@ -180,10 +179,10 @@ export default function HomePage() {
                       aria-hidden="true"
                       className="pointer-events-none absolute inset-0 rounded-[22px] bg-[radial-gradient(circle_at_center,rgba(125,211,252,0.14),transparent_58%)] opacity-0 transition duration-300 group-hover:opacity-100"
                     />
-                    <span className="relative z-10 inline-flex items-center gap-4 rounded-[23px] border border-white/10 bg-[linear-gradient(180deg,#0d1015_0%,#050608_100%)] px-10 py-4 text-xl font-black tracking-[-0.02em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_50px_rgba(0,0,0,0.45)] md:px-14 md:py-5 md:text-2xl">
-                      <span className="absolute inset-0 rounded-[23px] bg-[linear-gradient(115deg,transparent_18%,rgba(255,255,255,0.02)_34%,rgba(125,211,252,0.12)_50%,rgba(255,255,255,0.03)_58%,transparent_76%)] opacity-70 transition duration-300 group-hover:opacity-100" />
+                    <span className="relative z-10 inline-flex items-center gap-4 rounded-[23px] border border-[#d8dee8] bg-[linear-gradient(180deg,#ffffff_0%,#eef2f7_100%)] px-10 py-4 text-xl font-black tracking-[-0.02em] text-[#101828] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_18px_50px_rgba(148,163,184,0.18)] md:px-14 md:py-5 md:text-2xl">
+                      <span className="absolute inset-0 rounded-[23px] bg-[linear-gradient(115deg,transparent_18%,rgba(255,255,255,0.72)_34%,rgba(125,211,252,0.16)_50%,rgba(255,255,255,0.76)_58%,transparent_76%)] opacity-70 transition duration-300 group-hover:opacity-100" />
                       <span className="relative z-10">Initialize Workspace</span>
-                      <span className="relative z-10 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-lg text-sky-200 transition duration-300 group-hover:border-sky-300/30 group-hover:bg-sky-300/10 group-hover:text-white">
+                      <span className="relative z-10 inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#d7dee8] bg-white text-lg text-[#2563eb] transition duration-300 group-hover:border-sky-300/40 group-hover:bg-sky-50 group-hover:text-[#0f172a]">
                         ↗
                       </span>
                     </span>
@@ -193,7 +192,7 @@ export default function HomePage() {
             </div>
 
             <aside
-              className="relative h-[620px] rounded-[36px] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_40px_120px_rgba(79,70,229,0.12)]"
+              className="relative h-[620px] rounded-[36px] border border-[#dce3ed] bg-[linear-gradient(180deg,#ffffff_0%,#eef2f7_100%)] p-5 backdrop-blur-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.72),0_40px_120px_rgba(148,163,184,0.16)]"
               onMouseLeave={() => setActiveHeroProduct(null)}
             >
               {heroProducts.map((product, index) => {
@@ -207,14 +206,14 @@ export default function HomePage() {
                     style={{
                       zIndex: isActive ? 40 : layout.baseZIndex,
                       transform: `rotate(${layout.rotation}) scale(${isActive ? 1.045 : 1}) translateY(${isActive ? "-10px" : "0px"})`,
-                      borderColor: isActive ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.10)",
+                      borderColor: isActive ? "rgba(148,163,184,0.45)" : "rgba(203,213,225,0.9)",
                       boxShadow: isActive
-                        ? "0 35px 120px rgba(79,70,229,0.22), 0 0 0 1px rgba(255,255,255,0.05)"
-                        : "0 30px 90px rgba(0,0,0,0.45)",
+                        ? "0 35px 120px rgba(148,163,184,0.28), 0 0 0 1px rgba(255,255,255,0.7)"
+                        : "0 30px 90px rgba(148,163,184,0.24)",
                       filter: activeHeroProduct !== null && !isActive ? "brightness(0.78) saturate(0.9)" : "none",
                     }}
                   >
-                    <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent)] opacity-0 transition duration-300" style={{ opacity: isActive ? 1 : 0 }} />
+                    <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(148,163,184,0.82),transparent)] opacity-0 transition duration-300" style={{ opacity: isActive ? 1 : 0 }} />
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       alt={product.title}
@@ -224,38 +223,38 @@ export default function HomePage() {
                   </div>
                 );
               })}
-              <div className="absolute left-6 top-8 h-40 w-40 rounded-full bg-indigo-500/18 blur-3xl" />
-              <div className="absolute bottom-12 right-6 h-36 w-36 rounded-full bg-cyan-400/15 blur-3xl" />
+              <div className="absolute left-6 top-8 h-40 w-40 rounded-full bg-slate-300/35 blur-3xl" />
+              <div className="absolute bottom-12 right-6 h-36 w-36 rounded-full bg-sky-200/35 blur-3xl" />
             </aside>
           </div>
         </section>
 
         <section className="mx-auto grid w-full max-w-[1480px] gap-5 px-6 py-6 lg:grid-cols-[0.8fr_1.2fr]" id="system">
-          <article className="rounded-[32px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-2xl">
-            <p className="text-xs uppercase tracking-[0.22em] text-white/35">System trace</p>
-            <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-white md:text-4xl">
+          <article className="rounded-[32px] border border-[#dce3ed] bg-white/82 p-6 backdrop-blur-2xl">
+            <p className="text-xs uppercase tracking-[0.22em] text-[#8b97a8]">System trace</p>
+            <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-[#101828] md:text-4xl">
               Built for monitored decisions, not decorative AI.
             </h2>
-            <p className="mt-4 max-w-xl text-base leading-8 text-white/58">
+            <p className="mt-4 max-w-xl text-base leading-8 text-[#667085]">
               The interface should feel like a procurement terminal. Every recommendation is tied
               to execution state, every bargain is bounded by constraints, and every output is
               structured for action.
             </p>
           </article>
-          <article className="rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.03))] p-5 backdrop-blur-2xl">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <article className="rounded-[32px] border border-[#dce3ed] bg-[linear-gradient(180deg,#ffffff_0%,#eef2f7_100%)] p-5 backdrop-blur-2xl">
+            <div className="flex items-center justify-between border-b border-[#e3e8ef] pb-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-white/35">Execution log</p>
-                <h3 className="mt-1 text-lg font-semibold tracking-[-0.03em] text-white">Agent pipeline</h3>
+                <p className="text-xs uppercase tracking-[0.22em] text-[#8b97a8]">Execution log</p>
+                <h3 className="mt-1 text-lg font-semibold tracking-[-0.03em] text-[#101828]">Agent pipeline</h3>
               </div>
-              <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-mono text-[11px] text-emerald-300">
+              <span className="rounded-full border border-emerald-500/16 bg-emerald-50 px-3 py-1 font-mono text-[11px] text-emerald-700">
                 RUNNING
               </span>
             </div>
             <div className="mt-4 space-y-3 font-mono text-sm">
               {executionFeed.map((line, index) => (
                 <div
-                  className="rounded-2xl border border-white/8 bg-black/35 px-4 py-3 text-emerald-300/90"
+                  className="rounded-2xl border border-[#dde5ef] bg-white px-4 py-3 text-[#3b556e]"
                   key={line}
                   style={{ animation: `fadeUp 0.55s ease ${index * 0.1}s both` }}
                 >
@@ -267,14 +266,14 @@ export default function HomePage() {
         </section>
 
         <section className="mx-auto w-full max-w-[1480px] px-6 py-8">
-          <div className="flex flex-col items-start justify-between gap-4 border-b border-white/10 pb-5 md:flex-row md:items-end">
+          <div className="flex flex-col items-start justify-between gap-4 border-b border-[#dce3ed] pb-5 md:flex-row md:items-end">
             <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-white/35">Core surfaces</p>
-              <h2 className="mt-2 text-4xl font-black tracking-[-0.04em] text-white md:text-5xl">
+              <p className="text-xs uppercase tracking-[0.22em] text-[#8b97a8]">Core surfaces</p>
+              <h2 className="mt-2 text-4xl font-black tracking-[-0.04em] text-[#101828] md:text-5xl">
                 A cold, high-contrast interface for agentic commerce.
               </h2>
             </div>
-            <p className="max-w-xl text-sm leading-7 text-white/55 md:text-right">
+            <p className="max-w-xl text-sm leading-7 text-[#667085] md:text-right">
               Recommendation, negotiation, and execution are presented as linked surfaces with low
               visual noise and high operational density.
             </p>
@@ -282,16 +281,16 @@ export default function HomePage() {
           <div className="mt-6 grid gap-5 lg:grid-cols-3">
             {capabilityCards.map((card, index) => (
               <article
-                className="group relative overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-2xl transition duration-300 hover:border-white/18 hover:bg-white/[0.055]"
+                className="group relative overflow-hidden rounded-[32px] border border-[#dde3ec] bg-white/82 p-4 backdrop-blur-2xl transition duration-300 hover:border-[#c6d0dc] hover:bg-white hover:shadow-[0_20px_60px_rgba(148,163,184,0.14)]"
                 key={card.title}
                 style={{ animation: `fadeUp 0.7s ease ${index * 0.08}s both` }}
               >
                 <div className="pointer-events-none absolute -bottom-20 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-indigo-500/0 blur-3xl transition duration-300 group-hover:bg-indigo-500/18" />
-                <div className="pointer-events-none absolute inset-x-16 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent)] opacity-0 transition group-hover:opacity-100" />
-                <p className="text-xs uppercase tracking-[0.22em] text-white/35">{card.eyebrow}</p>
-                <h3 className="mt-2 text-2xl font-black tracking-[-0.03em] text-white">{card.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-white/55">{card.copy}</p>
-                <div className="mt-5 overflow-hidden rounded-[24px] border border-white/10 bg-black/40">
+                <div className="pointer-events-none absolute inset-x-16 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(148,163,184,0.6),transparent)] opacity-0 transition group-hover:opacity-100" />
+                <p className="text-xs uppercase tracking-[0.22em] text-[#8b97a8]">{card.eyebrow}</p>
+                <h3 className="mt-2 text-2xl font-black tracking-[-0.03em] text-[#101828]">{card.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-[#667085]">{card.copy}</p>
+                <div className="mt-5 overflow-hidden rounded-[24px] border border-[#dce3ed] bg-[#eef2f7]">
                   <Image
                     alt={card.title}
                     className="h-auto w-full object-cover transition duration-500 group-hover:scale-[1.02]"
@@ -306,13 +305,13 @@ export default function HomePage() {
         </section>
 
         <section className="mx-auto w-full max-w-[1480px] px-6 py-14">
-          <div className="relative overflow-hidden rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] px-6 py-10 backdrop-blur-2xl md:px-10">
-            <div className="pointer-events-none absolute left-1/2 top-0 h-px w-2/3 -translate-x-1/2 bg-[linear-gradient(90deg,transparent,rgba(125,211,252,0.8),transparent)]" />
-            <p className="text-xs uppercase tracking-[0.22em] text-white/35">Final call</p>
-            <h2 className="mt-3 max-w-4xl text-4xl font-black tracking-[-0.04em] text-white md:text-6xl">
+          <div className="relative overflow-hidden rounded-[36px] border border-[#dce3ed] bg-[linear-gradient(180deg,#ffffff_0%,#eef2f7_100%)] px-6 py-10 backdrop-blur-2xl md:px-10">
+            <div className="pointer-events-none absolute left-1/2 top-0 h-px w-2/3 -translate-x-1/2 bg-[linear-gradient(90deg,transparent,rgba(96,165,250,0.62),transparent)]" />
+            <p className="text-xs uppercase tracking-[0.22em] text-[#8b97a8]">Final call</p>
+            <h2 className="mt-3 max-w-4xl text-4xl font-black tracking-[-0.04em] text-[#101828] md:text-6xl">
               Stop browsing like a shopper. Start operating like a buying desk.
             </h2>
-            <p className="mt-5 max-w-3xl text-lg leading-8 text-white/58">
+            <p className="mt-5 max-w-3xl text-lg leading-8 text-[#667085]">
               Move from vague product discovery to explicit procurement logic. Search, compare,
               bargain, and order through a single AI-native surface.
             </p>
@@ -324,7 +323,7 @@ export default function HomePage() {
                 Open the Console
               </Link>
               <button
-                className="inline-flex h-12 items-center rounded-2xl border border-white/12 bg-white/5 px-6 text-sm font-semibold text-white/80 backdrop-blur-xl transition hover:border-white/20 hover:bg-white/8"
+                className="inline-flex h-12 items-center rounded-2xl border border-[#d7dde7] bg-[#f7f9fc] px-6 text-sm font-semibold text-[#475467] backdrop-blur-xl transition hover:border-[#c4ccd8] hover:bg-white"
                 onClick={() => setAuthOpen(true)}
                 type="button"
               >
