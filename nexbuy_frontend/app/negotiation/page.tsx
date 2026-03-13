@@ -452,7 +452,7 @@ export default function NegotiationPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#f8efe2_0%,#f4efe8_42%,#ece7df_100%)] px-4 pb-6 pt-24 text-[#231f1a] md:px-6">
+    <main className="min-h-screen bg-[linear-gradient(180deg,#f7f9fc_0%,#edf2f8_100%)] px-4 pb-6 pt-24 text-[#101828] md:px-6">
       <Navbar
         isBlurred={authOpen}
         isAuthenticated={isAuthenticated}
@@ -464,21 +464,21 @@ export default function NegotiationPage() {
         }}
       />
       <div className="mx-auto grid w-full max-w-7xl gap-5 xl:grid-cols-[1.5fr_0.6fr]">
-        <section className="flex min-h-[84vh] flex-col rounded-[30px] border border-[#eadfce] bg-white p-4 shadow-[0_24px_80px_rgba(58,39,15,0.08)] md:p-5 lg:p-6">
-          <div className="flex items-center justify-between border-b border-[#efe7da] pb-4">
+        <section className="flex min-h-[84vh] flex-col rounded-[30px] border border-[#dbe4ef] bg-white/95 p-4 shadow-[0_24px_80px_rgba(148,163,184,0.14)] md:p-5 lg:p-6">
+          <div className="flex items-center justify-between border-b border-[#e7edf4] pb-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-[#b58a52]">Conversation</p>
-              <h2 className="mt-1 text-2xl font-black text-[#2f241a]">Buyer vs Seller</h2>
-              <p className="mt-2 text-sm text-[#7c6957]">
-                Direct bargaining for <span className="font-semibold text-[#3f2b18]">{title}</span>
+              <p className="text-xs uppercase tracking-[0.22em] text-[#7c8da5]">Conversation</p>
+              <h2 className="mt-1 text-2xl font-black text-[#101828]">Buyer vs Seller</h2>
+              <p className="mt-2 text-sm text-[#667085]">
+                Direct bargaining for <span className="font-semibold text-[#101828]">{title}</span>
               </p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
                   mode === "manual"
-                    ? "bg-[#2f6fa3] text-white"
-                    : "border border-[#d8cbb7] bg-white text-[#6f5a44]"
+                    ? "bg-[#2563eb] text-white"
+                    : "border border-[#d8e2ee] bg-white text-[#667085]"
                 }`}
                 onClick={() => setMode("manual")}
                 type="button"
@@ -488,33 +488,30 @@ export default function NegotiationPage() {
               <button
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
                   mode === "agent"
-                    ? "bg-[#8f5a2a] text-white"
-                    : "border border-[#d8cbb7] bg-white text-[#6f5a44]"
+                    ? "bg-[#111827] text-white"
+                    : "border border-[#d8e2ee] bg-white text-[#667085]"
                 }`}
                 onClick={() => setMode("agent")}
                 type="button"
               >
                 Buyer Agent
               </button>
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  session?.closed
-                    ? "bg-[#e8ece3] text-[#4a6440]"
-                    : "bg-[#f8ead7] text-[#8a5e22]"
-                }`}
+              <Link
+                className="rounded-full border border-[#d7e1ec] bg-white px-3 py-1 text-xs font-semibold text-[#344054] transition hover:border-[#bfd4ec] hover:bg-[#f8fbff]"
+                href="/recommendations"
               >
-                {session?.closed ? "Closed" : "Open"}
-              </span>
+                Back to packages
+              </Link>
             </div>
           </div>
 
-          <div className="mt-4 flex-1 space-y-3 overflow-y-auto rounded-[28px] border border-[#f0e7da] bg-[#fcfaf7] p-4 md:p-5">
+          <div className="mt-4 flex-1 space-y-3 overflow-y-auto rounded-[28px] border border-[#e7edf4] bg-[linear-gradient(180deg,#fbfdff_0%,#f4f7fb_100%)] p-4 md:p-5">
             {messages.length === 0 ? (
               mode === "agent" ? (
-                <div className="rounded-2xl border border-dashed border-[#deceb9] bg-[#fffaf3] px-4 py-4 text-sm text-[#7b6b59]">
+                <div className="rounded-2xl border border-dashed border-[#d5dfeb] bg-white px-4 py-4 text-sm text-[#667085]">
                   {isRunningAgent ? (
                     <div className="space-y-2">
-                      <p className="font-semibold text-[#5f4a37]">Buyer agent is negotiating now.</p>
+                      <p className="font-semibold text-[#344054]">Buyer agent is negotiating now.</p>
                       <p>
                         The system is generating buyer-side decisions, validating them, and sending
                         them to the seller agent. Transcript messages will appear here round by round.
@@ -522,22 +519,22 @@ export default function NegotiationPage() {
                     </div>
                   ) : agentResult ? (
                     <div className="space-y-2">
-                      <p className="font-semibold text-[#5f4a37]">Negotiation finished with no transcript.</p>
+                      <p className="font-semibold text-[#344054]">Negotiation finished with no transcript.</p>
                       <p>{agentResult.summary}</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <p className="font-semibold text-[#5f4a37]">Buyer agent is not running yet.</p>
+                      <p className="font-semibold text-[#344054]">Buyer agent is not running yet.</p>
                       <p>
                         Enter your target price and max acceptable price below, then click
-                        <span className="mx-1 font-semibold text-[#8f5a2a]">Auto bargain</span>
+                        <span className="mx-1 font-semibold text-[#2563eb]">Auto bargain</span>
                         to start the automatic negotiation.
                       </p>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="rounded-2xl border border-dashed border-[#deceb9] px-4 py-4 text-sm text-[#7b6b59]">
+                <div className="rounded-2xl border border-dashed border-[#d5dfeb] px-4 py-4 text-sm text-[#667085]">
                   Preparing the seller agent...
                 </div>
               )
@@ -546,20 +543,20 @@ export default function NegotiationPage() {
                 <article
                   className={`max-w-[88%] rounded-[24px] px-4 py-3 md:px-5 md:py-4 ${
                     message.pending
-                      ? "mr-auto border border-dashed border-[#d7c6b0] bg-[#fffaf3] text-[#6c5842]"
+                      ? "mr-auto border border-dashed border-[#d5dfeb] bg-white text-[#475467]"
                       : message.role === "buyer"
-                      ? "ml-auto bg-[#2f6fa3] text-white"
-                      : "mr-auto border border-[#eadfce] bg-white text-[#2f241a]"
+                      ? "ml-auto bg-[linear-gradient(180deg,#2563eb_0%,#1d4ed8_100%)] text-white"
+                      : "mr-auto border border-[#dbe4ef] bg-white text-[#101828]"
                   }`}
                   key={message.id}
                 >
                   <p
                     className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${
                       message.pending
-                        ? "text-[#a28463]"
+                        ? "text-[#98a2b3]"
                         : message.role === "buyer"
-                          ? "text-[#d9ecfb]"
-                          : "text-[#a28463]"
+                          ? "text-[#dbeafe]"
+                          : "text-[#98a2b3]"
                     }`}
                   >
                     {message.label ?? (message.role === "buyer" ? "Buyer" : "Seller")}
@@ -568,7 +565,7 @@ export default function NegotiationPage() {
                   {message.meta ? (
                     <p
                       className={`mt-2 text-[11px] ${
-                        message.role === "buyer" ? "text-[#d9ecfb]" : "text-[#7d6954]"
+                        message.role === "buyer" ? "text-[#dbeafe]" : "text-[#667085]"
                       }`}
                     >
                       {message.meta}
@@ -580,9 +577,9 @@ export default function NegotiationPage() {
           </div>
 
           {mode === "manual" ? (
-            <form className="mt-4 border-t border-[#efe7da] pt-4" onSubmit={handleSubmit}>
+            <form className="mt-4 border-t border-[#e7edf4] pt-4" onSubmit={handleSubmit}>
               <textarea
-                className="min-h-[110px] w-full resize-none rounded-[24px] border border-[#decfb8] bg-[#fffcf8] px-4 py-3 text-sm text-[#2f241a] outline-none focus:border-[#c9965a]"
+                className="min-h-[110px] w-full resize-none rounded-[24px] border border-[#d7e1ec] bg-[#fbfdff] px-4 py-3 text-sm text-[#101828] outline-none focus:border-[#93c5fd]"
                 disabled={!manualSession || isSubmitting || manualSession.closed}
                 onChange={(event) => setPrompt(event.target.value)}
                 placeholder="Example: I can do $850 if you can confirm today."
@@ -590,11 +587,11 @@ export default function NegotiationPage() {
                 value={prompt}
               />
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs text-[#8a7761]">
+                <p className="text-xs text-[#667085]">
                   Mention a price in your message and the backend will submit it as your offer.
                 </p>
                 <button
-                  className="rounded-full bg-[#8f5a2a] px-5 py-3 text-sm font-semibold text-white hover:bg-[#7d4f25] disabled:cursor-not-allowed disabled:bg-[#ccb59f]"
+                  className="rounded-full bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-5 py-3 text-sm font-semibold text-white hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={!manualSession || isSubmitting || manualSession.closed || !prompt.trim()}
                   type="submit"
                 >
@@ -604,15 +601,15 @@ export default function NegotiationPage() {
               {error ? <p className="mt-3 text-sm text-rose-600">{error}</p> : null}
             </form>
           ) : (
-            <div className="mt-4 border-t border-[#efe7da] pt-4">
+            <div className="mt-4 border-t border-[#e7edf4] pt-4">
               <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[#93745a]">
+                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[#7c8da5]">
                       Target Price
                     </span>
                     <input
-                      className="h-12 w-full rounded-2xl border border-[#decfb8] bg-[#fffcf8] px-4 text-sm text-[#2f241a] outline-none focus:border-[#c9965a]"
+                      className="h-12 w-full rounded-2xl border border-[#d7e1ec] bg-[#fbfdff] px-4 text-sm text-[#101828] outline-none focus:border-[#93c5fd]"
                       min="1"
                       onChange={(event) => setTargetPrice(event.target.value)}
                       placeholder="Ideal closing price"
@@ -622,11 +619,11 @@ export default function NegotiationPage() {
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[#93745a]">
+                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[#7c8da5]">
                       Max Acceptable
                     </span>
                     <input
-                      className="h-12 w-full rounded-2xl border border-[#decfb8] bg-[#fffcf8] px-4 text-sm text-[#2f241a] outline-none focus:border-[#c9965a]"
+                      className="h-12 w-full rounded-2xl border border-[#d7e1ec] bg-[#fbfdff] px-4 text-sm text-[#101828] outline-none focus:border-[#93c5fd]"
                       min="1"
                       onChange={(event) => setMaxAcceptablePrice(event.target.value)}
                       placeholder="Hard ceiling"
@@ -638,7 +635,7 @@ export default function NegotiationPage() {
                 </div>
                 <div>
                   <button
-                    className="h-12 rounded-full bg-[#8f5a2a] px-5 text-sm font-semibold text-white hover:bg-[#7d4f25] disabled:cursor-not-allowed disabled:bg-[#ccb59f]"
+                    className="h-12 rounded-full bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-5 text-sm font-semibold text-white hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={isRunningAgent || !targetPrice.trim() || !maxAcceptablePrice.trim()}
                     onClick={handleRunBuyerAgent}
                     type="button"
@@ -647,12 +644,12 @@ export default function NegotiationPage() {
                   </button>
                 </div>
               </div>
-              <p className="mt-3 text-xs text-[#8a7761]">
+              <p className="mt-3 text-xs text-[#667085]">
                 The buyer agent will negotiate automatically for up to 5 rounds. It will try to hit
                 your target price and never go above your max acceptable price.
               </p>
               {agentResult ? (
-                <p className="mt-2 text-sm text-[#5f4a37]">
+                <p className="mt-2 text-sm text-[#344054]">
                   Outcome: <span className="font-semibold">{agentResult.outcome}</span>
                   {agentResult.final_price ? ` | Final price: ${agentResult.final_price.toLocaleString()}` : ""}
                 </p>
@@ -662,32 +659,32 @@ export default function NegotiationPage() {
           )}
         </section>
 
-        <aside className="rounded-[28px] border border-[#dfd1bf] bg-[#f9f3ea] p-5 shadow-[0_20px_60px_rgba(80,54,16,0.08)]">
-          <p className="text-xs font-semibold tracking-[0.24em] text-[#ad7c43] uppercase">Seller agent</p>
-          <h1 className="mt-2 text-3xl font-black text-[#3f2b18]">Try bargain</h1>
-          <p className="mt-3 text-sm leading-7 text-[#6c5742]">
+        <aside className="rounded-[28px] border border-[#dbe4ef] bg-[linear-gradient(180deg,#f8fbff_0%,#eef3f9_100%)] p-5 shadow-[0_20px_60px_rgba(148,163,184,0.14)]">
+          <p className="text-xs font-semibold tracking-[0.24em] text-[#7c8da5] uppercase">Seller agent</p>
+          <h1 className="mt-2 text-3xl font-black text-[#101828]">Try bargain</h1>
+          <p className="mt-3 text-sm leading-7 text-[#667085]">
             Negotiate directly with the seller on a single product before you go back to place the
             order.
           </p>
 
-          <div className="mt-5 rounded-3xl border border-[#e6d7c4] bg-white/90 p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-[#93745a]">Current item</p>
-            <h2 className="mt-1 text-xl font-bold text-[#2f241a]">{title}</h2>
-            <p className="mt-2 text-sm text-[#6f6154]">From plan: {planTitle}</p>
+          <div className="mt-5 rounded-3xl border border-[#dfe7f1] bg-white/95 p-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-[#7c8da5]">Current item</p>
+            <h2 className="mt-1 text-xl font-bold text-[#101828]">{title}</h2>
+            <p className="mt-2 text-sm text-[#667085]">From plan: {planTitle}</p>
             <div className="mt-4 space-y-3">
-              <div className="rounded-2xl bg-[#fbf7f1] p-3">
-                <p className="text-xs text-[#90745d]">List price</p>
-                <p className="mt-1 text-lg font-bold text-[#2f241a]">{priceLabel}</p>
+              <div className="rounded-2xl bg-[#f8fbff] p-3">
+                <p className="text-xs text-[#7c8da5]">List price</p>
+                <p className="mt-1 text-lg font-bold text-[#101828]">{priceLabel}</p>
               </div>
-              <div className="rounded-2xl bg-[#fbf7f1] p-3">
-                <p className="text-xs text-[#90745d]">Negotiation status</p>
-                <p className="mt-1 text-sm font-semibold text-[#2f241a]">{status}</p>
+              <div className="rounded-2xl bg-[#f8fbff] p-3">
+                <p className="text-xs text-[#7c8da5]">Negotiation status</p>
+                <p className="mt-1 text-sm font-semibold text-[#101828]">{status}</p>
               </div>
             </div>
           </div>
 
           {session ? (
-            <div className="mt-5 rounded-3xl border border-[#e6d7c4] bg-[#fffdf9] p-4 text-sm text-[#5f4a37]">
+            <div className="mt-5 rounded-3xl border border-[#dfe7f1] bg-white/90 p-4 text-sm text-[#475467]">
               <p>Session ID: {session.session_id}</p>
               <p className="mt-1">Max rounds: {session.max_rounds}</p>
               <p className="mt-1">
@@ -705,8 +702,8 @@ export default function NegotiationPage() {
           ) : null}
 
           {mode === "agent" ? (
-            <div className="mt-5 rounded-3xl border border-[#e6d7c4] bg-[#fffdf9] p-4 text-sm text-[#5f4a37]">
-              <p className="font-semibold text-[#3f2b18]">Buyer agent status</p>
+            <div className="mt-5 rounded-3xl border border-[#dfe7f1] bg-white/90 p-4 text-sm text-[#475467]">
+              <p className="font-semibold text-[#101828]">Buyer agent status</p>
               <p className="mt-2">
                 {isRunningAgent
                   ? "Running automatic negotiation..."
@@ -725,22 +722,6 @@ export default function NegotiationPage() {
               ) : null}
             </div>
           ) : null}
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            <button
-              className="rounded-full border border-[#ccb598] px-4 py-2 text-sm font-semibold text-[#6b4f2b] hover:bg-[#f3e3ce]"
-              onClick={() => router.push("/chat")}
-              type="button"
-            >
-              Back to workspace
-            </button>
-            <Link
-              className="rounded-full border border-[#d8c8b5] px-4 py-2 text-sm font-semibold text-[#5d4a39] hover:bg-white"
-              href="/"
-            >
-              Home
-            </Link>
-          </div>
         </aside>
       </div>
       <AuthModal
