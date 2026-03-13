@@ -36,6 +36,8 @@ type SavedWorkspaceState = {
 };
 
 const WORKSPACE_STORAGE_KEY = "nexbuy.chat.workspace";
+const LEGACY_AI_STATUS = "AI is analyzing your request...";
+const AGENT_ANALYZING_STATUS = "Agent is analyzing your request...";
 
 function buildFriendlyEvent(event: TimelineEvent): FriendlyEvent {
   const type = event.type.toLowerCase();
@@ -120,6 +122,10 @@ function buildFriendlyEvent(event: TimelineEvent): FriendlyEvent {
   };
 }
 
+function normalizeStatus(status: string) {
+  return status === LEGACY_AI_STATUS ? AGENT_ANALYZING_STATUS : status;
+}
+
 
 export default function ChatWorkspacePage() {
   const router = useRouter();
@@ -163,7 +169,7 @@ export default function ChatWorkspacePage() {
         setTimeline(restoredWorkspace.timeline);
         setPlans(restoredWorkspace.plans);
         setActivePlanId(restoredWorkspace.activePlanId);
-        setStatus(restoredWorkspace.status);
+        setStatus(normalizeStatus(restoredWorkspace.status));
         plansRef.current = restoredWorkspace.plans;
         restoredWorkspaceRef.current = Boolean(
           restoredWorkspace.sessionId ||
@@ -289,7 +295,7 @@ export default function ChatWorkspacePage() {
     setIsSending(true);
     setStreamText("");
     streamTextRef.current = "";
-    setStatus("AI is analyzing your request...");
+    setStatus(AGENT_ANALYZING_STATUS);
     setMessages((current) => [
       ...current,
       {
@@ -465,7 +471,7 @@ export default function ChatWorkspacePage() {
         {
           id: "assistant-draft",
           role: "assistant" as const,
-          content: streamText || "AI is analyzing your request...",
+          content: streamText || AGENT_ANALYZING_STATUS,
           createdAt: new Date().toISOString(),
         },
       ]
@@ -487,7 +493,7 @@ export default function ChatWorkspacePage() {
         <section className="flex min-h-[86vh] flex-col rounded-[28px] border border-[#dbe3ed] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_18px_50px_rgba(148,163,184,0.12)] md:p-6">
           <div className="flex items-center justify-between border-b border-[#dce4ee] pb-4">
             <div>
-              <h1 className="text-xl font-semibold tracking-tight text-[#101828] md:text-2xl">AI Shopping Assistant</h1>
+              <h1 className="text-xl font-semibold tracking-tight text-[#101828] md:text-2xl">Agent Shopping Assistant</h1>
               <p className="mt-1 text-sm text-[#667085]">{status}</p>
             </div>
             <Link
@@ -515,7 +521,7 @@ export default function ChatWorkspacePage() {
                   key={message.id}
                 >
                   <p className="mb-1 text-[10px] uppercase tracking-[0.18em] text-[#98a2b3]">
-                    {message.role === "user" ? "You" : "AI"}
+                    {message.role === "user" ? "You" : "Agent"}
                   </p>
                   <p>
                     {message.content}
@@ -560,7 +566,7 @@ export default function ChatWorkspacePage() {
         <aside className="h-[86vh] overflow-hidden rounded-[28px] border border-[#dbe3ed] bg-[linear-gradient(180deg,#f8fafd_0%,#eef2f7_100%)] p-4 shadow-[0_18px_50px_rgba(148,163,184,0.12)] md:p-5">
           <div className="flex items-center justify-between border-b border-[#dce4ee] pb-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-[#8b97a8]">AI Process</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-[#8b97a8]">Agent Process</p>
               <h2 className="mt-1 text-lg font-semibold text-[#101828]">Pipeline Log</h2>
               <p className="mt-1 text-xs text-[#667085]">
                 Live backend events from parsing, search, and bundle generation.
