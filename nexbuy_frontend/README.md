@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Nexbuy Frontend
 
-## Getting Started
+## Overview
+This is the Next.js frontend for Nexbuy. It serves the main site, chat workspace, packages page, negotiation page, plaza, auth callback, and profile flows.
 
-First, run the development server:
-
+## Environment Setup
+1. Copy the example file:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env
+```
+2. Review these variables:
+
+- `PORT`: local frontend port. Default is `8001`.
+- `NEXT_PUBLIC_API_BASE_URL`: browser REST base. Keep `/api` for local development.
+- `BACKEND_ORIGIN`: backend origin used by Next rewrites. Usually `http://127.0.0.1:8000`.
+- `NEXT_PUBLIC_BACKEND_ORIGIN`: backend origin used by browser-side SSE for chat and negotiation streams.
+- `NEXT_PUBLIC_CHAT_MODE`: use `real` unless you are testing mock flows.
+
+Most frontend values do not need to be requested from a vendor. They should match your local backend address. If you change backend host or port, update both `BACKEND_ORIGIN` and `NEXT_PUBLIC_BACKEND_ORIGIN`.
+
+## Install and Run
+Install dependencies:
+```bash
+npm install
 ```
 
-Open [http://localhost:8001](http://localhost:8001) with your browser to see the result.
+Start the dev server:
+```bash
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Open:
+```text
+http://localhost:8001
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Useful Commands
+- `npm run dev`: start the development server.
+- `npm run build`: create a production build.
+- `npm run start`: run the production build locally.
+- `npm run lint`: run ESLint.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notes
+- The frontend expects the backend to be running before chat, packages, plaza recommendations, negotiation, or auth flows will work.
+- Google sign-in also depends on the backend OAuth configuration being correct.
