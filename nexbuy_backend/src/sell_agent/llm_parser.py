@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass
 
 from src.model import get_llm_client
+from src.model.config import model_settings
 
 
 _JSON_RE = re.compile(r"\{.*\}", re.DOTALL)
@@ -73,13 +74,17 @@ async def parse_buyer_intent(message: str) -> BuyerIntent:
         return BuyerIntent()
 
     try:
-        llm = get_llm_client("glm")
+        llm = get_llm_client(
+            model_settings.llm_sell_parser_provider,
+            model=model_settings.llm_sell_parser_model,
+        )
         result = await llm.chat(
             messages=[
                 {"role": "system", "content": PARSER_SYSTEM_PROMPT},
                 {"role": "user", "content": f"Buyer message:\n{text}"},
             ],
             temperature=0.0,
+            timeout_seconds=model_settings.llm_sell_parser_timeout_seconds,
         )
         parsed = _extract_json(result.content)
         return BuyerIntent(

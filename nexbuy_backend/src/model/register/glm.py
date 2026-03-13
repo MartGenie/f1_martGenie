@@ -39,6 +39,7 @@ class GLMClient:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        timeout_seconds: int | None = None,
     ) -> ChatResult:
         def _request() -> Any:
             kwargs: dict[str, Any] = {
@@ -55,11 +56,11 @@ class GLMClient:
         try:
             response = await asyncio.wait_for(
                 asyncio.to_thread(_request),
-                timeout=GLM_REQUEST_TIMEOUT_SECONDS,
+                timeout=timeout_seconds or GLM_REQUEST_TIMEOUT_SECONDS,
             )
         except asyncio.TimeoutError as exc:
             raise TimeoutError(
-                f"GLM chat request timed out after {GLM_REQUEST_TIMEOUT_SECONDS}s."
+                f"GLM chat request timed out after {timeout_seconds or GLM_REQUEST_TIMEOUT_SECONDS}s."
             ) from exc
 
         if hasattr(response, "model_dump"):

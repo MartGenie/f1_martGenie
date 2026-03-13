@@ -3,6 +3,7 @@ import time
 from typing import Any
 
 from src.model import ChatMessage, get_llm_client
+from src.model.config import model_settings
 
 from .prompt import ANALYSIS_SYSTEM_PROMPT, build_analysis_user_prompt
 from .schema import TargetItem, UserContentAnalysisResult
@@ -138,8 +139,15 @@ async def analyze_user_content_with_debug(
         used_keys = [k for k, v in long_term_memory.items() if v not in (None, "", [], {})]
         logs.append(f"[user_content_analysis] long memory loaded: {used_keys}")
 
-    llm_client = get_llm_client("glm")
+    llm_client = get_llm_client(
+        model_settings.llm_analysis_provider,
+        model=model_settings.llm_analysis_model,
+    )
     logs.append("[user_content_analysis] LLM client initialized")
+    logs.append(
+        f"[user_content_analysis] llm provider={model_settings.llm_analysis_provider}, "
+        f"model={model_settings.llm_analysis_model}"
+    )
     messages: list[ChatMessage] = [
         {"role": "system", "content": ANALYSIS_SYSTEM_PROMPT},
     ]
@@ -162,7 +170,11 @@ async def analyze_user_content_with_debug(
         ]
     )
     t_llm = time.perf_counter()
-    result = await llm_client.chat(messages=messages, temperature=0.1)
+    result = await llm_client.chat(
+        messages=messages,
+        temperature=0.1,
+        timeout_seconds=model_settings.llm_analysis_timeout_seconds,
+    )
     logs.append(
         f"[user_content_analysis] LLM response received in {(time.perf_counter() - t_llm):.2f}s"
     )

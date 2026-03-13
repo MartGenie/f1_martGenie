@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass
 
 from src.model import get_llm_client
+from src.model.config import model_settings
 
 from .llm_parser import BuyerIntent
 
@@ -83,7 +84,10 @@ async def propose_price_and_reply(
     buyer_intent: BuyerIntent,
     feedback_note: str | None = None,
 ) -> SellerProposal:
-    llm = get_llm_client("glm")
+    llm = get_llm_client(
+        model_settings.llm_sell_price_provider,
+        model=model_settings.llm_sell_price_model,
+    )
     user_prompt = (
         "Create one seller proposal for this turn.\n"
         f"decision_mode={decision_mode}\n"
@@ -104,6 +108,7 @@ async def propose_price_and_reply(
             {"role": "user", "content": user_prompt},
         ],
         temperature=0.3,
+        timeout_seconds=model_settings.llm_sell_price_timeout_seconds,
     )
     parsed = _extract_json(result.content)
     proposed = _safe_float(parsed.get("proposed_price"), recommended_price)
@@ -131,7 +136,10 @@ async def generate_seller_reply(
     fallback_message: str,
 ) -> str:
     try:
-        llm = get_llm_client("glm")
+        llm = get_llm_client(
+            model_settings.llm_sell_reply_provider,
+            model=model_settings.llm_sell_reply_model,
+        )
         user_prompt = (
             "Generate seller reply for this negotiation turn.\n"
             f"decision={decision}\n"
@@ -154,6 +162,7 @@ async def generate_seller_reply(
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.2,
+            timeout_seconds=model_settings.llm_sell_reply_timeout_seconds,
         )
         text = (result.content or "").strip()
         return text or fallback_message

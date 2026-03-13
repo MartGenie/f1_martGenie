@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass
 
 from src.model import get_llm_client
+from src.model.config import model_settings
 from src.sell_agent.schema import NegotiationTurn
 
 
@@ -73,7 +74,10 @@ async def propose_buyer_decision(
     seller_turn: NegotiationTurn | None,
     transcript_summary: str,
 ) -> BuyerLLMDecision:
-    llm = get_llm_client("glm")
+    llm = get_llm_client(
+        model_settings.llm_buyer_decision_provider,
+        model=model_settings.llm_buyer_decision_model,
+    )
     seller_price = None
     seller_decision = None
     seller_message = None
@@ -104,6 +108,7 @@ async def propose_buyer_decision(
             },
         ],
         temperature=0.2,
+        timeout_seconds=model_settings.llm_buyer_decision_timeout_seconds,
     )
     payload = _extract_json(result.content)
     action = str(payload.get("action") or "").strip()

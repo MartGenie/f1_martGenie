@@ -5,6 +5,7 @@ import time
 from typing import Any
 
 from src.model import get_llm_client
+from src.model.config import model_settings
 from src.model.query_data.schema import ProductRow
 from src.model.user_content_analysis.schema import UserContentAnalysisResult
 
@@ -341,9 +342,16 @@ async def compose_bundle_with_ai(
     if long_term_memory:
         payload["long_term_memory"] = long_term_memory
         payload["priority_rule"] = "current_user_request_overrides_long_term_memory"
-    llm = get_llm_client("glm")
+    llm = get_llm_client(
+        model_settings.llm_bundle_provider,
+        model=model_settings.llm_bundle_model,
+    )
     logs.append(
         f"[bundle_composer] input candidates={len(candidates)}, used for compose={len(ranked_candidates)}"
+    )
+    logs.append(
+        f"[bundle_composer] llm provider={model_settings.llm_bundle_provider}, "
+        f"model={model_settings.llm_bundle_model}"
     )
     if long_term_memory:
         used_keys = [k for k, v in long_term_memory.items() if v not in (None, "", [], {})]
@@ -369,6 +377,7 @@ async def compose_bundle_with_ai(
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=0.0,
+                    timeout_seconds=model_settings.llm_bundle_timeout_seconds,
                 ),
                 timeout=timeout_seconds,
             )

@@ -10,17 +10,27 @@ class EmbeddingService:
     def __init__(
         self,
         *,
+        provider: str | None = None,
         api_key: str | None = None,
         base_url: str | None = None,
         model: str | None = None,
+        timeout_seconds: int | None = None,
     ) -> None:
+        self._provider = (provider or model_settings.llm_embedding_provider).strip().lower()
+        if self._provider != "glm":
+            raise ValueError(
+                f"Unsupported embedding provider: {self._provider}. Only 'glm' is supported now."
+            )
         key = (api_key or model_settings.glm_model_key).strip()
         if not key:
             raise ValueError("GLM_MODEL_KEY is not set.")
         self._api_key = key
         self._base_url = (base_url or model_settings.glm_api_base_url).strip()
-        self._model = (model or model_settings.glm_embedding_model_name).strip()
+        self._model = (model or model_settings.llm_embedding_model).strip()
         self._expected_dim = int(model_settings.glm_embedding_dim or 0)
+        self._timeout_seconds = int(
+            timeout_seconds or model_settings.llm_embedding_timeout_seconds or EMBEDDING_REQUEST_TIMEOUT_SECONDS
+        )
 
         try:
             from zai import ZhipuAiClient  # type: ignore
@@ -52,11 +62,11 @@ class EmbeddingService:
         try:
             response = await asyncio.wait_for(
                 asyncio.to_thread(_request),
-                timeout=EMBEDDING_REQUEST_TIMEOUT_SECONDS,
+                timeout=self._timeout_seconds,
             )
         except asyncio.TimeoutError as exc:
             raise TimeoutError(
-                f"Embedding request timed out after {EMBEDDING_REQUEST_TIMEOUT_SECONDS}s."
+                f"Embedding request timed out after {self._timeout_seconds}s."
             ) from exc
         payload = response.model_dump() if hasattr(response, "model_dump") else response
         if not isinstance(payload, dict):

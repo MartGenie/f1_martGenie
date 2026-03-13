@@ -20,5 +20,6 @@ class LLMClient(Protocol):
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        timeout_seconds: int | None = None,
     ) -> ChatResult:
         ...
