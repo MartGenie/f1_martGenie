@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clearAccessToken, fetchCurrentUser, readAccessToken } from "@/lib/auth";
 import {
   createNegotiationSession,
@@ -88,6 +88,18 @@ function buildAgentTranscript(result: BuyerAgentRunResult): ChatBubble[] {
   });
 }
 
+function buildStoredRunTranscript(stored: ReturnType<typeof readNegotiationRuns>[string]): ChatBubble[] {
+  return stored.result
+    ? buildAgentTranscript(stored.result)
+    : stored.turns.flatMap((turn) => {
+        const bubbles: ChatBubble[] = [buildBuyerAgentBubble(turn)];
+        if (turn.seller_turn) {
+          bubbles.push({ ...buildSellerBubble(turn.seller_turn), label: "Seller Agent" });
+        }
+        return bubbles;
+      });
+}
+
 export default function NegotiationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -97,6 +109,9 @@ export default function NegotiationPage() {
   const price = searchParams.get("price");
   const planId = searchParams.get("planId") ?? undefined;
   const planTitle = searchParams.get("planTitle") ?? "Recommended bundle";
+  const autoStart = searchParams.get("autoStart") === "1";
+  const queryTargetPrice = searchParams.get("targetPrice");
+  const queryMaxAcceptablePrice = searchParams.get("maxAcceptablePrice");
 
   const [session, setSession] = useState<NegotiationSession | null>(null);
   const [manualSession, setManualSession] = useState<NegotiationSession | null>(null);
@@ -115,11 +130,25 @@ export default function NegotiationPage() {
   const [isRunningAgent, setIsRunningAgent] = useState(false);
   const [agentResult, setAgentResult] = useState<BuyerAgentRunResult | null>(null);
   const [thinkingMessage, setThinkingMessage] = useState<string | null>(null);
+  const hasAutoStartedRef = useRef(false);
 
   const priceLabel = useMemo(() => {
     const amount = price ? Number(price) : null;
     return amount && Number.isFinite(amount) ? `$${amount.toLocaleString()}` : "Unknown";
   }, [price]);
+
+  function applyStoredRun(stored: ReturnType<typeof readNegotiationRuns>[string]) {
+    setMode("agent");
+    setAgentMessages(buildStoredRunTranscript(stored));
+    setSession(stored.result?.seller_session ?? stored.sellerSession);
+    setStatus(stored.progressLabel);
+    setThinkingMessage(stored.status === "running" ? stored.progressLabel : null);
+    setError("");
+    setTargetPrice(String(stored.targetPrice));
+    setMaxAcceptablePrice(String(stored.maxAcceptablePrice));
+    setAgentResult(stored.result ?? null);
+    setIsRunningAgent(stored.status === "running");
+  }
 
   useEffect(() => {
     if (!sku) {
@@ -129,29 +158,32 @@ export default function NegotiationPage() {
     const storedRuns = readNegotiationRuns();
     const stored = storedRuns[sku];
     if (!stored) {
+      if (queryTargetPrice) {
+        setTargetPrice(queryTargetPrice);
+      }
+      if (queryMaxAcceptablePrice) {
+        setMaxAcceptablePrice(queryMaxAcceptablePrice);
+      }
       return;
     }
 
-    setMode("agent");
-    setAgentMessages(
-      stored.result
-        ? buildAgentTranscript(stored.result)
-        : stored.turns.flatMap((turn) => {
-            const bubbles: ChatBubble[] = [buildBuyerAgentBubble(turn)];
-            if (turn.seller_turn) {
-              bubbles.push({ ...buildSellerBubble(turn.seller_turn), label: "Seller Agent" });
-            }
-            return bubbles;
-          }),
-    );
-    setSession(stored.result?.seller_session ?? stored.sellerSession);
-    setStatus(stored.progressLabel);
-    setThinkingMessage(null);
-    setError("");
-    setTargetPrice(String(stored.targetPrice));
-    setMaxAcceptablePrice(String(stored.maxAcceptablePrice));
-    setAgentResult(stored.result ?? null);
-    setIsRunningAgent(stored.status === "running");
+    applyStoredRun(stored);
+  }, [queryMaxAcceptablePrice, queryTargetPrice, sku]);
+
+  useEffect(() => {
+    if (!sku) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      const stored = readNegotiationRuns()[sku];
+      if (!stored) {
+        return;
+      }
+      applyStoredRun(stored);
+    }, 1000);
+
+    return () => window.clearInterval(timer);
   }, [sku]);
 
   useEffect(() => {
@@ -214,7 +246,10 @@ export default function NegotiationPage() {
           setMessages([]);
           setStatus("Set your target and max acceptable prices, then run the buyer agent.");
         }
-        if (price && !storedRun) {
+        if (queryTargetPrice && queryMaxAcceptablePrice) {
+          setTargetPrice(queryTargetPrice);
+          setMaxAcceptablePrice(queryMaxAcceptablePrice);
+        } else if (price && !storedRun) {
           const numericPrice = Number(price);
           setTargetPrice(String(Math.round(numericPrice * 0.9)));
           setMaxAcceptablePrice(String(Math.round(numericPrice * 0.95)));
@@ -234,7 +269,7 @@ export default function NegotiationPage() {
     return () => {
       cancelled = true;
     };
-  }, [price, priceLabel, sku, title]);
+  }, [price, priceLabel, queryMaxAcceptablePrice, queryTargetPrice, sku, title]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -338,7 +373,7 @@ export default function NegotiationPage() {
     }
   }, [agentResult, isRunningAgent, manualSession, mode]);
 
-  function buildStreamEvent(event: BuyerAgentStreamEvent) {
+  const buildStreamEvent = useCallback((event: BuyerAgentStreamEvent) => {
     if (event.type === "thinking") {
       setThinkingMessage(event.message);
       return;
@@ -405,9 +440,9 @@ export default function NegotiationPage() {
       setError(event.error);
       setStatus("Buyer agent negotiation failed.");
     }
-  }
+  }, [planId, planTitle, price, sku, title]);
 
-  async function handleRunBuyerAgent() {
+  const handleRunBuyerAgent = useCallback(async () => {
     const parsedTarget = Number(targetPrice);
     const parsedMax = Number(maxAcceptablePrice);
     if (
@@ -449,7 +484,34 @@ export default function NegotiationPage() {
     } finally {
       setIsRunningAgent(false);
     }
-  }
+  }, [
+    buildStreamEvent,
+    isRunningAgent,
+    maxAcceptablePrice,
+    sku,
+    targetPrice,
+  ]);
+
+  useEffect(() => {
+    if (!autoStart || hasAutoStartedRef.current || !isAuthenticated || !sku) {
+      return;
+    }
+    if (!targetPrice.trim() || !maxAcceptablePrice.trim() || isRunningAgent || agentResult) {
+      return;
+    }
+
+    hasAutoStartedRef.current = true;
+    void handleRunBuyerAgent();
+  }, [
+    agentResult,
+    autoStart,
+    handleRunBuyerAgent,
+    isAuthenticated,
+    isRunningAgent,
+    maxAcceptablePrice,
+    sku,
+    targetPrice,
+  ]);
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#f7f9fc_0%,#edf2f8_100%)] px-4 pb-6 pt-24 text-[#101828] md:px-6">

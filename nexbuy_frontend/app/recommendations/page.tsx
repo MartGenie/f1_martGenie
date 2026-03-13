@@ -6,13 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { clearAccessToken, fetchCurrentUser, readAccessToken } from "@/lib/auth";
 import { createMockOrder, type MockOrderResponse, type PlanOption } from "@/lib/chat-api";
 import type { ChatMessage, TimelineEvent } from "@/lib/chat-contract";
-import { streamBuyerAgentNegotiation } from "@/lib/negotiation-api";
-import {
-  readNegotiatedDeals,
-  readNegotiationRuns,
-  writeNegotiatedDeal,
-  writeNegotiationRun,
-} from "@/lib/negotiation-store";
+import { readNegotiatedDeals, readNegotiationRuns } from "@/lib/negotiation-store";
 import AuthModal from "@/src/components/AuthModal";
 import Navbar from "@/src/components/Navbar";
 
@@ -90,14 +84,6 @@ function getSuggestedMax(price: number) {
   return Math.max(1, Math.round(price * 0.95));
 }
 
-function formatMoney(value: number | null | undefined) {
-  if (typeof value !== "number" || Number.isNaN(value)) {
-    return null;
-  }
-
-  return `$${value.toLocaleString()}`;
-}
-
 export default function RecommendationsPage() {
   const router = useRouter();
   const initialWorkspace = readSavedWorkspace();
@@ -113,10 +99,6 @@ export default function RecommendationsPage() {
   const [expandedNegotiationSku, setExpandedNegotiationSku] = useState<string | null>(null);
   const [targetPriceDrafts, setTargetPriceDrafts] = useState<Record<string, string>>({});
   const [maxAcceptableDrafts, setMaxAcceptableDrafts] = useState<Record<string, string>>({});
-  const [runningNegotiationSku, setRunningNegotiationSku] = useState<string | null>(null);
-  const [negotiationProgress, setNegotiationProgress] = useState<Record<string, number>>({});
-  const [negotiationStatus, setNegotiationStatus] = useState<Record<string, string>>({});
-  const [negotiationErrors, setNegotiationErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const token = readAccessToken();
@@ -212,180 +194,6 @@ export default function RecommendationsPage() {
             [sku]: String(storedRun?.maxAcceptablePrice ?? getSuggestedMax(price)),
           },
     );
-    setNegotiationProgress((current) =>
-      current[sku] !== undefined
-        ? current
-        : {
-            ...current,
-            [sku]: storedRun?.progressPercent ?? 0,
-          },
-    );
-    setNegotiationStatus((current) =>
-      current[sku]
-        ? current
-        : {
-            ...current,
-            [sku]: storedRun?.progressLabel ?? "Set your target and let the agent bargain for you.",
-          },
-    );
-  }
-
-  async function handleRunInlineNegotiation(item: (typeof activePlan.items)[number]) {
-    if (!activePlan) {
-      return;
-    }
-
-    const parsedTarget = Number(targetPriceDrafts[item.sku]);
-    const parsedMax = Number(maxAcceptableDrafts[item.sku]);
-    if (
-      !Number.isFinite(parsedTarget) ||
-      !Number.isFinite(parsedMax) ||
-      parsedTarget <= 0 ||
-      parsedMax <= 0 ||
-      parsedMax < parsedTarget
-    ) {
-      setNegotiationErrors((current) => ({
-        ...current,
-        [item.sku]: "Enter a valid target price and a max acceptable price above it.",
-      }));
-      return;
-    }
-
-    setNegotiationErrors((current) => ({ ...current, [item.sku]: "" }));
-    setRunningNegotiationSku(item.sku);
-    setNegotiationProgress((current) => ({ ...current, [item.sku]: 8 }));
-    setNegotiationStatus((current) => ({
-      ...current,
-      [item.sku]: "Agent is preparing the first offer...",
-    }));
-
-    try {
-      await streamBuyerAgentNegotiation(
-        {
-          skuIdDefault: item.sku,
-          targetPrice: parsedTarget,
-          maxAcceptablePrice: parsedMax,
-        },
-        (event) => {
-          if (event.type === "session_started") {
-            setNegotiationProgress((current) => ({ ...current, [item.sku]: 18 }));
-            setNegotiationStatus((current) => ({
-              ...current,
-              [item.sku]: "Seller session opened. Preparing round 1.",
-            }));
-            writeNegotiationRun({
-              sku: item.sku,
-              title: item.title,
-              originalPrice: item.price,
-              planId: activePlan.id,
-              planTitle: activePlan.title,
-              targetPrice: parsedTarget,
-              maxAcceptablePrice: parsedMax,
-              status: "running",
-              progressLabel: "Seller session opened. Preparing round 1.",
-              progressPercent: 18,
-              turns: [],
-              sellerSession: event.seller_session,
-              result: null,
-              savedAt: new Date().toISOString(),
-            });
-            return;
-          }
-
-          if (event.type === "thinking") {
-            setNegotiationProgress((current) => ({
-              ...current,
-              [item.sku]: Math.max(current[item.sku] ?? 18, event.phase === "buyer_decision" ? 28 : 42),
-            }));
-            setNegotiationStatus((current) => ({ ...current, [item.sku]: event.message }));
-            return;
-          }
-
-          if (event.type === "buyer_turn") {
-            setNegotiationProgress((current) => ({
-              ...current,
-              [item.sku]: Math.max(current[item.sku] ?? 28, 35 + event.turn.round_index * 10),
-            }));
-            setNegotiationStatus((current) => ({
-              ...current,
-              [item.sku]: `Offer sent in round ${event.turn.round_index}. Waiting for seller response.`,
-            }));
-            return;
-          }
-
-          if (event.type === "seller_turn") {
-            setNegotiationProgress((current) => ({
-              ...current,
-              [item.sku]: Math.max(current[item.sku] ?? 45, 48 + event.turn.round_index * 10),
-            }));
-            setNegotiationStatus((current) => ({
-              ...current,
-              [item.sku]:
-                event.turn.seller_decision === "accept"
-                  ? "Seller accepted the latest offer."
-                  : `Seller responded in round ${event.turn.round_index}.`,
-            }));
-            return;
-          }
-
-          if (event.type === "done") {
-            setNegotiationProgress((current) => ({ ...current, [item.sku]: 100 }));
-            setNegotiationStatus((current) => ({
-              ...current,
-              [item.sku]: event.result.summary,
-            }));
-            writeNegotiationRun({
-              sku: item.sku,
-              title: item.title,
-              originalPrice: item.price,
-              planId: activePlan.id,
-              planTitle: activePlan.title,
-              targetPrice: event.result.target_price,
-              maxAcceptablePrice: event.result.max_acceptable_price,
-              status: "done",
-              progressLabel: event.result.summary,
-              progressPercent: 100,
-              turns: event.result.turns,
-              sellerSession: event.result.seller_session,
-              result: event.result,
-              savedAt: new Date().toISOString(),
-            });
-            if (event.result.outcome === "accepted" && typeof event.result.final_price === "number") {
-              writeNegotiatedDeal({
-                sku: item.sku,
-                title: item.title,
-                originalPrice: item.price,
-                negotiatedPrice: event.result.final_price,
-                planId: activePlan.id,
-                planTitle: activePlan.title,
-                acceptedAt: new Date().toISOString(),
-              });
-            }
-            return;
-          }
-
-          if (event.type === "error") {
-            setNegotiationErrors((current) => ({ ...current, [item.sku]: event.error }));
-            setNegotiationStatus((current) => ({
-              ...current,
-              [item.sku]: "Agent negotiation failed.",
-            }));
-          }
-        },
-      );
-    } catch (runError) {
-      setNegotiationErrors((current) => ({
-        ...current,
-        [item.sku]:
-          runError instanceof Error ? runError.message : "Could not run agent negotiation.",
-      }));
-      setNegotiationStatus((current) => ({
-        ...current,
-        [item.sku]: "Agent negotiation failed.",
-      }));
-    } finally {
-      setRunningNegotiationSku((current) => (current === item.sku ? null : current));
-    }
   }
 
   return (
@@ -591,45 +399,27 @@ export default function RecommendationsPage() {
                                   </label>
                                 </div>
                                 <div className="mt-4 flex flex-wrap gap-3">
-                                  <button
-                                    className="inline-flex h-10 items-center justify-center rounded-full bg-[linear-gradient(180deg,#1f2937_0%,#111827_100%)] px-4 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.16)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-                                    disabled={runningNegotiationSku === item.sku}
-                                    onClick={() => void handleRunInlineNegotiation(item)}
-                                    type="button"
+                                  <Link
+                                    className="inline-flex h-10 items-center justify-center rounded-full bg-[linear-gradient(180deg,#1f2937_0%,#111827_100%)] px-4 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.16)] transition hover:brightness-105"
+                                    href={`/negotiation?sku=${encodeURIComponent(item.sku)}&title=${encodeURIComponent(item.title)}&price=${encodeURIComponent(String(item.price))}&planId=${encodeURIComponent(activePlan.id)}&planTitle=${encodeURIComponent(activePlan.title)}&targetPrice=${encodeURIComponent(targetPriceDrafts[item.sku] ?? String(getSuggestedTarget(item.price)))}&maxAcceptablePrice=${encodeURIComponent(maxAcceptableDrafts[item.sku] ?? String(getSuggestedMax(item.price)))}&autoStart=1`}
                                   >
-                                    {runningNegotiationSku === item.sku ? "Negotiating..." : "Start auto negotiation"}
-                                  </button>
+                                    Start in negotiation view
+                                  </Link>
                                   <Link
                                     className="inline-flex h-10 items-center justify-center rounded-full border border-[#d7e3f4] bg-white px-4 text-sm font-semibold text-[#344054] transition hover:border-[#bfd4ec] hover:bg-[#f8fbff]"
-                                    href={`/negotiation?sku=${encodeURIComponent(item.sku)}&title=${encodeURIComponent(item.title)}&price=${encodeURIComponent(String(item.price))}&planId=${encodeURIComponent(activePlan.id)}&planTitle=${encodeURIComponent(activePlan.title)}`}
+                                    href={`/negotiation?sku=${encodeURIComponent(item.sku)}&title=${encodeURIComponent(item.title)}&price=${encodeURIComponent(String(item.price))}&planId=${encodeURIComponent(activePlan.id)}&planTitle=${encodeURIComponent(activePlan.title)}&targetPrice=${encodeURIComponent(targetPriceDrafts[item.sku] ?? String(getSuggestedTarget(item.price)))}&maxAcceptablePrice=${encodeURIComponent(maxAcceptableDrafts[item.sku] ?? String(getSuggestedMax(item.price)))}`}
                                   >
                                     View negotiation
                                   </Link>
                                 </div>
-                                <div className="mt-4">
-                                  <div className="h-2 rounded-full bg-white/90">
-                                    <div
-                                      className="h-2 rounded-full bg-[linear-gradient(90deg,#60a5fa_0%,#2563eb_100%)] transition-all duration-300"
-                                      style={{ width: `${negotiationProgress[item.sku] ?? 0}%` }}
-                                    />
-                                  </div>
-                                  <div className="mt-2 flex items-center justify-between gap-3 text-xs text-[#667085]">
-                                    <span>
-                                      {negotiationStatus[item.sku] ??
-                                        "Set your target and let the agent bargain for you."}
-                                    </span>
-                                    <span>{negotiationProgress[item.sku] ?? 0}%</span>
-                                  </div>
-                                </div>
+                                <p className="mt-4 text-xs leading-6 text-[#667085]">
+                                  The negotiation page will start the live agent bargaining flow with
+                                  these price limits if you choose the primary action.
+                                </p>
                                 {storedNegotiationRuns[item.sku]?.result?.final_price ? (
                                   <p className="mt-3 text-sm font-medium text-[#166534]">
                                     Last accepted deal:{" "}
-                                    {formatMoney(storedNegotiationRuns[item.sku]?.result?.final_price)}
-                                  </p>
-                                ) : null}
-                                {negotiationErrors[item.sku] ? (
-                                  <p className="mt-3 text-sm text-[#b42318]">
-                                    {negotiationErrors[item.sku]}
+                                    ${storedNegotiationRuns[item.sku]?.result?.final_price?.toLocaleString()}
                                   </p>
                                 ) : null}
                               </div>
