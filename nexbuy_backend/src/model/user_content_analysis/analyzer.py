@@ -8,6 +8,9 @@ from src.model.config import model_settings
 from .prompt import ANALYSIS_SYSTEM_PROMPT, build_analysis_user_prompt
 from .schema import TargetItem, UserContentAnalysisResult
 
+MAX_ANALYSIS_MESSAGES = 4
+MAX_MEMORY_LIST_ITEMS = 4
+
 
 def _extract_json_object(raw_text: str) -> dict[str, Any]:
     text = raw_text.strip()
@@ -123,6 +126,37 @@ def _normalize(parsed: dict[str, Any]) -> UserContentAnalysisResult:
     )
 
 
+def _compact_conversation_messages(
+    conversation_messages: list[ChatMessage],
+) -> list[ChatMessage]:
+    filtered = [
+        {
+            "role": msg["role"],
+            "content": str(msg["content"]).strip(),
+        }
+        for msg in conversation_messages
+        if msg.get("role") in {"user", "assistant"} and str(msg.get("content") or "").strip()
+    ]
+    return filtered[-MAX_ANALYSIS_MESSAGES:]
+
+
+def _compact_long_term_memory(long_term_memory: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not long_term_memory:
+        return None
+
+    compact: dict[str, Any] = {}
+    for key, value in long_term_memory.items():
+        if key == "raw_answers":
+            continue
+        if value in (None, "", [], {}):
+            continue
+        if isinstance(value, list):
+            compact[key] = value[:MAX_MEMORY_LIST_ITEMS]
+        else:
+            compact[key] = value
+    return compact or None
+
+
 async def analyze_user_content(conversation_messages: list[ChatMessage]) -> UserContentAnalysisResult:
     result, _ = await analyze_user_content_with_debug(conversation_messages)
     return result
@@ -135,8 +169,11 @@ async def analyze_user_content_with_debug(
     logs: list[str] = []
     t0 = time.perf_counter()
     logs.append(f"[user_content_analysis] input messages={len(conversation_messages)}")
-    if long_term_memory:
-        used_keys = [k for k, v in long_term_memory.items() if v not in (None, "", [], {})]
+    compact_memory = _compact_long_term_memory(long_term_memory)
+    compact_messages = _compact_conversation_messages(conversation_messages)
+    logs.append(f"[user_content_analysis] compacted messages={len(compact_messages)}")
+    if compact_memory:
+        used_keys = [k for k, v in compact_memory.items() if v not in (None, "", [], {})]
         logs.append(f"[user_content_analysis] long memory loaded: {used_keys}")
 
     llm_client = get_llm_client(
@@ -151,8 +188,8 @@ async def analyze_user_content_with_debug(
     messages: list[ChatMessage] = [
         {"role": "system", "content": ANALYSIS_SYSTEM_PROMPT},
     ]
-    if long_term_memory:
-        memory_block = json.dumps(long_term_memory, ensure_ascii=False)
+    if compact_memory:
+        memory_block = json.dumps(compact_memory, ensure_ascii=False)
         messages.append(
             {
                 "role": "system",
@@ -165,7 +202,7 @@ async def analyze_user_content_with_debug(
         )
     messages.extend(
         [
-        *conversation_messages,
+        *compact_messages,
         {"role": "user", "content": build_analysis_user_prompt()},
         ]
     )
@@ -181,26 +218,26 @@ async def analyze_user_content_with_debug(
     parsed = _extract_json_object(result.content)
     logs.append("[user_content_analysis] JSON parsed")
     normalized = _normalize(parsed)
-    if long_term_memory:
+    if compact_memory:
         used_defaults: list[str] = []
         memory_styles = [
             str(v).strip()
-            for v in (long_term_memory.get("style_preferences") or [])
+            for v in (compact_memory.get("style_preferences") or [])
             if str(v).strip()
         ]
         memory_rooms = [
             str(v).strip()
-            for v in (long_term_memory.get("room_priorities") or [])
+            for v in (compact_memory.get("room_priorities") or [])
             if str(v).strip()
         ]
         memory_constraints = [
             str(v).strip()
-            for v in (long_term_memory.get("negative_constraints") or [])
+            for v in (compact_memory.get("negative_constraints") or [])
             if str(v).strip()
         ]
         household = {
             str(v).strip().lower()
-            for v in (long_term_memory.get("household_members") or [])
+            for v in (compact_memory.get("household_members") or [])
             if str(v).strip()
         }
         if "cat" in household:
