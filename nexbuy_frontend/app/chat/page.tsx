@@ -38,6 +38,12 @@ type SavedWorkspaceState = {
 const WORKSPACE_STORAGE_KEY = "nexbuy.chat.workspace";
 const LEGACY_AI_STATUS = "AI is analyzing your request...";
 const AGENT_ANALYZING_STATUS = "Agent is analyzing your request...";
+const STARTER_PROMPTS = [
+  'Help me furnish a small living room with a soft modern look under $3,000.',
+  "I need a dining setup for 4 people with easy-clean materials and a calm palette.",
+  "Build a bedroom package with storage, warm wood tones, and pet-friendly fabrics.",
+];
+const GUIDANCE_CHIPS = ["Living room", "Dining", "Bedroom", "Pet-friendly", "Budget-aware"];
 
 function buildFriendlyEvent(event: TimelineEvent): FriendlyEvent {
   const type = event.type.toLowerCase();
@@ -521,6 +527,11 @@ export default function ChatWorkspacePage() {
         },
       ]
     : messages;
+  const hasConversation = renderedMessages.length > 0;
+
+  function applyPromptSuggestion(value: string) {
+    setPrompt(value);
+  }
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#f7f9fc_0%,#eef2f7_100%)] px-4 pb-5 pt-24 text-[#101828] md:px-6">
@@ -536,7 +547,7 @@ export default function ChatWorkspacePage() {
         }}
       />
       <div className="mx-auto grid w-full max-w-[1500px] gap-4 lg:grid-cols-[1.25fr_0.75fr]">
-        <section className="flex min-h-[86vh] flex-col rounded-[28px] border border-[#dbe3ed] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_18px_50px_rgba(148,163,184,0.12)] md:p-6">
+        <section className="flex min-h-[86vh] flex-col rounded-[30px] border border-[#dbe3ed] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_22px_56px_rgba(148,163,184,0.12)] md:p-6">
           <div className="flex items-center justify-between border-b border-[#dce4ee] pb-4">
             <div>
               <h1 className="text-xl font-semibold tracking-tight text-[#101828] md:text-2xl">Agent Shopping Assistant</h1>
@@ -550,16 +561,93 @@ export default function ChatWorkspacePage() {
             </Link>
           </div>
 
-          <div className="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
-            {renderedMessages.length === 0 ? (
-              <article className="max-w-[80%] rounded-2xl border border-[#d6e4f5] bg-[linear-gradient(180deg,#eff6ff_0%,#e0ecff_100%)] px-4 py-3 text-sm text-[#1f4f78] shadow-[0_10px_24px_rgba(59,130,246,0.08)]">
-                Try: &quot;My living room is 20m2, modern warm wood style, budget $3,000, need sofa + TV
-                stand + rug.&quot;
-              </article>
+          <div
+            className={`mt-4 flex-1 overflow-y-auto pr-1 ${
+              hasConversation ? "space-y-3" : "flex flex-col items-center justify-center"
+            }`}
+          >
+            {!hasConversation ? (
+              <div className="flex w-full max-w-[720px] flex-1 flex-col items-center justify-center px-3 pb-8 pt-4 text-center">
+                <div className="inline-flex h-16 w-16 items-center justify-center rounded-[18px] bg-[linear-gradient(180deg,#1d4ed8_0%,#0f766e_100%)] shadow-[0_16px_40px_rgba(29,78,216,0.18)]">
+                  <span className="text-2xl text-white">✦</span>
+                </div>
+                <p className="mt-6 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#0f766e]">
+                  <span className="h-2 w-2 rounded-full bg-[#10b981] shadow-[0_0_0_4px_rgba(16,185,129,0.12)]" />
+                  Live buying workflow
+                </p>
+                <h2
+                  className="mt-5 max-w-[640px] text-[34px] font-normal leading-[1.18] tracking-[-0.04em] text-[#111827] md:text-[44px]"
+                  style={{ fontFamily: "Georgia, Cambria, 'Times New Roman', Times, serif" }}
+                >
+                  Tell the agent what you need, and let it turn your brief into a shoppable package.
+                </h2>
+                <p className="mt-5 max-w-[520px] text-sm leading-7 text-[#667085] md:text-[15px]">
+                  Share the room, style, budget, and must-have items. The agent will parse your request,
+                  search products, and build packages while the system log stays visible on the right.
+                </p>
+
+                <div className="mt-8 w-full rounded-[28px] border border-[#d6e0eb] bg-white p-4 shadow-[0_18px_50px_rgba(148,163,184,0.12)] transition focus-within:border-[#8db4de] focus-within:shadow-[0_0_0_5px_rgba(147,184,230,0.14),0_18px_50px_rgba(148,163,184,0.14)]">
+                  <form onSubmit={handleSend}>
+                    <textarea
+                      className="min-h-[72px] w-full resize-none border-none bg-transparent px-1 py-1 text-[15px] leading-7 text-[#111827] outline-none placeholder:text-[#98a2b3]"
+                      disabled={!sessionId || isSending}
+                      onChange={(event) => setPrompt(event.target.value)}
+                      placeholder="Describe your room, style, budget, and must-have pieces..."
+                      rows={3}
+                      value={prompt}
+                    />
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-[#e6edf4] pt-3">
+                      <div className="flex flex-wrap gap-2">
+                        {GUIDANCE_CHIPS.map((chip) => (
+                          <button
+                            className="rounded-full border border-[#d8e2ec] bg-[linear-gradient(180deg,#fbfdff_0%,#f4f7fb_100%)] px-3 py-1.5 text-xs font-medium text-[#526173] transition hover:border-[#bfd4ec] hover:bg-[#eef6ff] hover:text-[#184a76]"
+                            key={chip}
+                            onClick={() => applyPromptSuggestion(chip === "Budget-aware" ? "Budget-aware package for a compact space." : `I need help with ${chip.toLowerCase()} furniture.`)}
+                            type="button"
+                          >
+                            {chip}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isSending ? (
+                          <button
+                            className="h-11 rounded-2xl border border-[#f3c7cf] bg-[#fff1f3] px-4 text-sm font-semibold text-[#be123c] transition hover:bg-[#ffe4e8]"
+                            onClick={handleCancel}
+                            type="button"
+                          >
+                            Cancel
+                          </button>
+                        ) : null}
+                        <button
+                          className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] text-lg text-white shadow-[0_16px_36px_rgba(15,23,42,0.16)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#b7c8d8] disabled:text-slate-200"
+                          disabled={!sessionId || isSending || !prompt.trim()}
+                          type="submit"
+                        >
+                          ↗
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+
+                <div className="mt-5 flex max-w-[760px] flex-wrap justify-center gap-2">
+                  {STARTER_PROMPTS.map((suggestion) => (
+                    <button
+                      className="rounded-full border border-[#d8e2ec] bg-white px-4 py-2 text-xs text-[#667085] transition hover:border-[#bfd4ec] hover:bg-[#eef6ff] hover:text-[#1f4f78]"
+                      key={suggestion}
+                      onClick={() => applyPromptSuggestion(suggestion)}
+                      type="button"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ) : (
               renderedMessages.map((message) => (
                 <article
-                  className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-7 md:text-[15px] ${
+                  className={`max-w-[82%] rounded-[24px] px-4 py-3 text-sm leading-7 md:text-[15px] ${
                     message.role === "user"
                       ? "ml-auto border border-[#d6e4f5] bg-[linear-gradient(180deg,#eff6ff_0%,#dbeafe_100%)] text-[#123b5f] shadow-[0_10px_24px_rgba(59,130,246,0.08)]"
                       : "mr-auto border border-[#e2e8f0] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] text-[#344054] shadow-[0_10px_24px_rgba(148,163,184,0.08)]"
@@ -580,32 +668,34 @@ export default function ChatWorkspacePage() {
             )}
           </div>
 
-          <form className="mt-4 flex items-end gap-2 border-t border-[#dce4ee] pt-4" onSubmit={handleSend}>
-            <textarea
-              className="min-h-[56px] w-full resize-none rounded-2xl border border-[#d7dee8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-3 text-sm text-[#101828] outline-none transition placeholder:text-[#98a2b3] focus:border-[#93c5fd] focus:shadow-[0_0_0_4px_rgba(147,197,253,0.18)]"
-              disabled={!sessionId || isSending}
-              onChange={(event) => setPrompt(event.target.value)}
-              placeholder="Describe your space, style, budget, and must-have items..."
-              rows={2}
-              value={prompt}
-            />
-            <button
-              className="h-[56px] rounded-2xl bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-5 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.18)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#b7c8d8] disabled:text-slate-200"
-              disabled={!sessionId || isSending || !prompt.trim()}
-              type="submit"
-            >
-              {isSending ? "Running..." : "Send"}
-            </button>
-            {isSending ? (
+          {hasConversation ? (
+            <form className="mt-4 flex items-end gap-2 border-t border-[#dce4ee] pt-4" onSubmit={handleSend}>
+              <textarea
+                className="min-h-[56px] w-full resize-none rounded-2xl border border-[#d7dee8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-3 text-sm text-[#101828] outline-none transition placeholder:text-[#98a2b3] focus:border-[#93c5fd] focus:shadow-[0_0_0_4px_rgba(147,197,253,0.18)]"
+                disabled={!sessionId || isSending}
+                onChange={(event) => setPrompt(event.target.value)}
+                placeholder="Refine the brief, add another room, or ask for a different mix..."
+                rows={2}
+                value={prompt}
+              />
               <button
-                className="h-[56px] rounded-2xl border border-[#f3c7cf] bg-[#fff1f3] px-4 text-sm font-semibold text-[#be123c] transition hover:bg-[#ffe4e8]"
-                onClick={handleCancel}
-                type="button"
+                className="h-[56px] rounded-2xl bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-5 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.18)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#b7c8d8] disabled:text-slate-200"
+                disabled={!sessionId || isSending || !prompt.trim()}
+                type="submit"
               >
-                Cancel
+                {isSending ? "Running..." : "Send"}
               </button>
-            ) : null}
-          </form>
+              {isSending ? (
+                <button
+                  className="h-[56px] rounded-2xl border border-[#f3c7cf] bg-[#fff1f3] px-4 text-sm font-semibold text-[#be123c] transition hover:bg-[#ffe4e8]"
+                  onClick={handleCancel}
+                  type="button"
+                >
+                  Cancel
+                </button>
+              ) : null}
+            </form>
+          ) : null}
           {error ? <p className="mt-2 text-sm text-[#be123c]">{error}</p> : null}
         </section>
 
