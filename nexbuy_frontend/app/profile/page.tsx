@@ -243,7 +243,6 @@ export default function ProfilePage() {
           setIsAuthenticated(false);
           router.push("/");
         }}
-        workspaceStatus={activeSection === "memory" ? "Reviewing saved preferences." : "Managing shipping addresses."}
       >
         <section className="h-full overflow-y-auto px-6 py-6">
           <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">

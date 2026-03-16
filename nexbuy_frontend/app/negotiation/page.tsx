@@ -622,7 +622,6 @@ export default function NegotiationPage() {
           setIsAuthenticated(false);
           router.push("/");
         }}
-        workspaceStatus={status}
       >
       <div className="mx-auto grid w-full max-w-7xl gap-5 px-6 py-10 xl:grid-cols-[1.5fr_0.6fr]">
         <section className="flex min-h-[84vh] flex-col rounded-[30px] border border-[#dbe4ef] bg-white/95 p-4 shadow-[0_24px_80px_rgba(148,163,184,0.14)] md:p-5 lg:p-6">

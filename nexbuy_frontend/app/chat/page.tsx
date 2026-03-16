@@ -562,7 +562,6 @@ export default function ChatWorkspacePage() {
         setIsAuthenticated(false);
         router.push("/");
       }}
-      workspaceStatus={status}
       onNewConversation={handleNewConversation}
     >
       <div className="h-full lg:grid lg:grid-cols-[minmax(0,1fr)_420px]">

@@ -1,15 +1,22 @@
 "use client";
 
+import { clearAccessToken, fetchCurrentUser, readAccessToken } from "@/lib/auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 
 type WorkspaceShellProps = {
   currentPath: string;
   isAuthenticated: boolean;
   onOpenAuth: () => void;
   onSignOut: () => void;
-  workspaceStatus?: string;
   onNewConversation?: () => void;
   children: ReactNode;
 };
@@ -121,12 +128,14 @@ export default function WorkspaceShell({
   isAuthenticated,
   onOpenAuth,
   onSignOut,
-  workspaceStatus,
   onNewConversation,
   children,
 }: WorkspaceShellProps) {
   const router = useRouter();
   const [selectedHistoryId, setSelectedHistoryId] = useState("current");
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const workspacePreviewSnapshot = useSyncExternalStore(
     subscribeWorkspacePreview,
     getWorkspacePreviewSnapshot,
@@ -151,6 +160,36 @@ export default function WorkspaceShell({
     [workspacePreview.preview, workspacePreview.title],
   );
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    const token = readAccessToken();
+    if (!token) {
+      return;
+    }
+
+    void fetchCurrentUser(token)
+      .then((user) => setUserEmail(user.email))
+      .catch(() => clearAccessToken());
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!accountMenuOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => window.removeEventListener("mousedown", handlePointerDown);
+  }, [accountMenuOpen]);
+
   function handleNewConversation() {
     if (typeof window !== "undefined") {
       window.sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
@@ -160,6 +199,11 @@ export default function WorkspaceShell({
     onNewConversation?.();
     router.push("/chat");
   }
+
+  const avatarLabel = useMemo(() => {
+    const base = userEmail.trim().slice(0, 2);
+    return base.length > 0 ? base.toUpperCase() : "NX";
+  }, [userEmail]);
 
   return (
     <main className="h-screen overflow-hidden bg-[linear-gradient(180deg,#f7f9fc_0%,#eef2f7_100%)] text-[#101828]">
@@ -227,31 +271,42 @@ export default function WorkspaceShell({
 
             <div className="border-t border-[#e2e8f0] px-4 py-4">
               {isAuthenticated ? (
-                <div className="rounded-[18px] bg-[linear-gradient(180deg,#f7fbff_0%,#eef5fd_100%)] px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,#8db4de,#1d4ed8)] text-sm font-bold text-white">
-                      NX
+                <div className="relative" ref={accountMenuRef}>
+                  <button
+                    className="flex w-full items-center gap-3 rounded-[18px] bg-[linear-gradient(180deg,#f7fbff_0%,#eef5fd_100%)] px-4 py-3 text-left transition hover:bg-[linear-gradient(180deg,#f3f8ff_0%,#e8f1fc_100%)]"
+                    onClick={() => setAccountMenuOpen((current) => !current)}
+                    type="button"
+                  >
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#8db4de,#1d4ed8)] text-sm font-bold text-white">
+                      {avatarLabel}
                     </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-[#101828]">Signed in</p>
-                      <p className="mt-1 text-xs text-[#667085]">Workspace ready across chat and deals.</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-[#101828]">{userEmail || "Signed in"}</p>
                     </div>
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <Link
-                      className="inline-flex h-10 flex-1 items-center justify-center rounded-2xl border border-[#d7e1ec] bg-white text-xs font-semibold text-[#344054] transition hover:border-[#bfd4ec] hover:bg-[#f8fbff]"
-                      href="/profile"
-                    >
-                      Profile
-                    </Link>
-                    <button
-                      className="inline-flex h-10 flex-1 items-center justify-center rounded-2xl border border-[#f1c7cf] bg-[#fff1f1] text-xs font-semibold text-[#b42318] transition hover:bg-[#ffe9ea]"
-                      onClick={onSignOut}
-                      type="button"
-                    >
-                      Sign out
-                    </button>
-                  </div>
+                    <span className="text-sm text-[#667085]">{accountMenuOpen ? "▴" : "▾"}</span>
+                  </button>
+
+                  {accountMenuOpen ? (
+                    <div className="absolute bottom-full left-0 mb-3 w-full overflow-hidden rounded-[18px] border border-[#d7e1ec] bg-white shadow-[0_18px_40px_rgba(15,23,42,0.12)]">
+                      <Link
+                        className="block px-4 py-3 text-sm font-medium text-[#344054] transition hover:bg-[#f8fbff]"
+                        href="/profile"
+                        onClick={() => setAccountMenuOpen(false)}
+                      >
+                        Profile
+                      </Link>
+                      <button
+                        className="block w-full px-4 py-3 text-left text-sm font-medium text-[#b42318] transition hover:bg-[#fff1f1]"
+                        onClick={() => {
+                          setAccountMenuOpen(false);
+                          onSignOut();
+                        }}
+                        type="button"
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 <div className="rounded-[18px] bg-[linear-gradient(180deg,#f7fbff_0%,#eef5fd_100%)] px-4 py-3">
@@ -266,10 +321,6 @@ export default function WorkspaceShell({
                   </button>
                 </div>
               )}
-              <div className="mt-3 rounded-[18px] bg-[linear-gradient(180deg,#f7fbff_0%,#eef5fd_100%)] px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7b8798]">Workspace</p>
-                <p className="mt-2 text-sm font-medium text-[#101828]">{workspaceStatus ?? "Ready to continue."}</p>
-              </div>
             </div>
           </aside>
 

@@ -150,7 +150,6 @@ export default function OrderPage() {
           setIsAuthenticated(false);
           router.push("/");
         }}
-        workspaceStatus={currentOrder ? "Order confirmed." : "Completing checkout details."}
       >
         <section className="h-full overflow-y-auto px-6 py-6">
           {!checkout ? (

@@ -218,7 +218,6 @@ function renderRecommendationCard(product: PlazaRecommendationProduct) {
           setIsAuthenticated(false);
           setRecommendations(null);
         }}
-        workspaceStatus="Browsing public wins and personalized picks."
       >
         <section className="mx-auto max-w-[1380px] px-6 py-10">
           <div className="rounded-[40px] border border-[#dce5ef] bg-[linear-gradient(180deg,rgba(255,255,255,0.9)_0%,rgba(245,249,253,0.9)_100%)] p-8 shadow-[0_32px_90px_rgba(148,163,184,0.16)] backdrop-blur-xl md:p-10">

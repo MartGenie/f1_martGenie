@@ -192,7 +192,6 @@ export default function RecommendationsPage() {
           setIsAuthenticated(false);
           router.push("/");
         }}
-        workspaceStatus={activePlan ? `Reviewing ${activePlan.title}` : "Packages ready to review."}
       >
         <section className="mx-auto max-w-[1480px] px-6 py-10">
           <div className="rounded-[36px] border border-[#dde4ed] bg-white/90 p-8 shadow-[0_24px_80px_rgba(148,163,184,0.12)] backdrop-blur-xl md:p-10">
