@@ -638,32 +638,28 @@ export default function ChatWorkspacePage() {
                     <form onSubmit={handleSend}>
                       <div className="relative">
                         <textarea
-                          className="min-h-[56px] w-full resize-none border-none bg-transparent px-1 py-1 pr-16 text-[15px] leading-7 text-[#111827] outline-none placeholder:text-[#98a2b3]"
+                          className="min-h-[56px] w-full resize-none border-none bg-transparent px-1 py-1 pr-28 text-[15px] leading-7 text-[#111827] outline-none placeholder:text-[#98a2b3]"
                           disabled={!sessionId || isSending}
                           onChange={(event) => setPrompt(event.target.value)}
                           placeholder="Describe your room, style, budget, and must-have pieces..."
                           rows={2}
                           value={prompt}
                         />
-                        <button
-                          className="absolute bottom-0 right-0 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] text-lg text-white shadow-[0_16px_36px_rgba(15,23,42,0.16)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#b7c8d8] disabled:text-slate-200"
-                          disabled={!sessionId || isSending || !prompt.trim()}
-                          type="submit"
-                        >
-                          ↗
-                        </button>
-                      </div>
-                      {isSending ? (
-                        <div className="mt-3 border-t border-[#e6edf4] pt-3">
+                        <div className="absolute bottom-0 right-0">
                           <button
-                            className="h-10 rounded-2xl border border-[#f3c7cf] bg-[#fff1f3] px-4 text-sm font-semibold text-[#be123c] transition hover:bg-[#ffe4e8]"
-                            onClick={handleCancel}
-                            type="button"
+                            className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl text-lg text-white shadow-[0_16px_36px_rgba(15,23,42,0.16)] transition ${
+                              isSending
+                                ? "bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] hover:brightness-105"
+                                : "bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#b7c8d8] disabled:text-slate-200"
+                            }`}
+                            disabled={!isSending && (!sessionId || !prompt.trim())}
+                            onClick={isSending ? handleCancel : undefined}
+                            type={isSending ? "button" : "submit"}
                           >
-                            Cancel
+                            {isSending ? <span className="h-3.5 w-3.5 rounded-[3px] bg-white" /> : "↑"}
                           </button>
                         </div>
-                      ) : null}
+                      </div>
                     </form>
                   </div>
 
@@ -708,30 +704,28 @@ export default function ChatWorkspacePage() {
               <form className="border-t border-[#e2e8f0] px-5 py-4 md:px-6" onSubmit={handleSend}>
                 <div className="relative">
                   <textarea
-                    className="min-h-[54px] w-full resize-none rounded-[24px] border border-[#d7dee8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-3 pr-16 text-sm text-[#101828] outline-none transition placeholder:text-[#98a2b3] focus:border-[#93c5fd] focus:shadow-[0_0_0_4px_rgba(147,197,253,0.18)]"
+                    className="min-h-[54px] w-full resize-none rounded-[24px] border border-[#d7dee8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-3 pr-28 text-sm text-[#101828] outline-none transition placeholder:text-[#98a2b3] focus:border-[#93c5fd] focus:shadow-[0_0_0_4px_rgba(147,197,253,0.18)]"
                     disabled={!sessionId || isSending}
                     onChange={(event) => setPrompt(event.target.value)}
                     placeholder="Refine the brief, add another room, or ask for a different mix..."
                     rows={2}
                     value={prompt}
                   />
-                  <button
-                    className="absolute bottom-1.5 right-1.5 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] text-lg text-white shadow-[0_16px_36px_rgba(15,23,42,0.18)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#b7c8d8] disabled:text-slate-200"
-                    disabled={!sessionId || isSending || !prompt.trim()}
-                    type="submit"
-                  >
-                    ↗
-                  </button>
+                  <div className="absolute bottom-1.5 right-1.5">
+                    <button
+                      className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl text-lg text-white shadow-[0_16px_36px_rgba(15,23,42,0.18)] transition ${
+                        isSending
+                          ? "bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] hover:brightness-105"
+                          : "bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#b7c8d8] disabled:text-slate-200"
+                      }`}
+                      disabled={!isSending && (!sessionId || !prompt.trim())}
+                      onClick={isSending ? handleCancel : undefined}
+                      type={isSending ? "button" : "submit"}
+                    >
+                      {isSending ? <span className="h-3.5 w-3.5 rounded-[3px] bg-white" /> : "↑"}
+                    </button>
+                  </div>
                 </div>
-                {isSending ? (
-                  <button
-                    className="mt-3 h-10 rounded-2xl border border-[#f3c7cf] bg-[#fff1f3] px-4 text-sm font-semibold text-[#be123c] transition hover:bg-[#ffe4e8]"
-                    onClick={handleCancel}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                ) : null}
                 {error ? <p className="mt-2 text-sm text-[#be123c]">{error}</p> : null}
               </form>
             ) : error ? (
