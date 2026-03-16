@@ -37,4 +37,4 @@
 🟨 场景十：矛盾/冲突需求（Conflicting Requirements）
 测试目的： 极限测试。看看 AI 是如何处理非常反直觉或者预算极度不合理的请求（比如用极低的预算买极其复杂的定制品）。
 中文： 我要买两张单人床给双胞胎儿子，现代风，总共预算 500 美元以内。必须是上下铺结构，而且楼梯里要带抽屉收纳。
-英文： I need to buy two single beds for my twin boys, modern style, total budget under $500. It must be a bunk bed structure and the stairs must include drawer storage.
+英文： I need to buy two single beds for my twin boys, modern style, total budget under $500. It must be a bunk bed structure and the stairs must include drawer storage. 
