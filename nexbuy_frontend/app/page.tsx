@@ -344,6 +344,7 @@ export default function HomePage() {
       <AuthModal
         onAuthSuccess={() => {
           setIsAuthenticated(true);
+          router.push("/chat");
         }}
         onClose={() => setAuthOpen(false)}
         open={authOpen}
