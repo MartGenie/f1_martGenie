@@ -213,15 +213,21 @@ export default function WorkspaceShell({
           <aside className="flex min-h-0 flex-col border-b border-[#e2e8f0] bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfe_100%)] lg:border-b-0 lg:border-r">
             <div className="border-b border-[#e2e8f0] px-4 py-4">
               <Link className="block" href="/">
-                <p className="font-mono text-lg font-black uppercase tracking-[0.34em] text-[#0f172a]">Nexbuy</p>
+                <p
+                  className="text-2xl font-bold uppercase tracking-[0.42em] text-[#0f172a] md:text-[1.75rem]"
+                  style={{ fontFamily: "'Orbitron', 'Rajdhani', 'IBM Plex Sans', sans-serif" }}
+                >
+                  Nexbuy
+                </p>
               </Link>
-              <div className="mt-5 space-y-1">
+              <div className="mt-7 space-y-1">
                 <button
-                  className="inline-flex h-10 w-full items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-4 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.14)] transition hover:brightness-105"
+                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-4 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.14)] transition hover:brightness-105"
                   onClick={handleNewConversation}
                   type="button"
                 >
-                  New conversation
+                  <span className="text-base leading-none">+</span>
+                  <span>New chat</span>
                 </button>
                 <nav className="space-y-1 pt-2">
                   <span className="block px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#98a2b3]">
