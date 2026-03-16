@@ -9,7 +9,7 @@ import type { ChatMessage, TimelineEvent } from "@/lib/chat-contract";
 import { readNegotiatedDeals, readNegotiationRuns } from "@/lib/negotiation-store";
 import { setOrderCheckout } from "@/lib/order-store";
 import AuthModal from "@/src/components/AuthModal";
-import Navbar from "@/src/components/Navbar";
+import WorkspaceShell from "@/src/components/WorkspaceShell";
 
 type SavedWorkspaceState = {
   sessionId?: string | null;
@@ -182,21 +182,19 @@ export default function RecommendationsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#f7f9fc_0%,#eef2f7_100%)] text-[#101828]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.22),transparent_24%),radial-gradient(circle_at_85%_10%,rgba(148,163,184,0.18),transparent_18%),linear-gradient(180deg,rgba(255,255,255,0.55),transparent_40%)]" />
-      <div className="relative">
-        <Navbar
-          isAuthenticated={isAuthenticated}
-          isBlurred={authOpen}
-          onOpenAuth={() => setAuthOpen(true)}
-          onSignOut={() => {
-            clearAccessToken();
-            setIsAuthenticated(false);
-            router.push("/");
-          }}
-        />
-
-        <section className="mx-auto max-w-[1480px] px-6 pb-16 pt-28">
+    <>
+      <WorkspaceShell
+        currentPath="/recommendations"
+        isAuthenticated={isAuthenticated}
+        onOpenAuth={() => setAuthOpen(true)}
+        onSignOut={() => {
+          clearAccessToken();
+          setIsAuthenticated(false);
+          router.push("/");
+        }}
+        workspaceStatus={activePlan ? `Reviewing ${activePlan.title}` : "Packages ready to review."}
+      >
+        <section className="mx-auto max-w-[1480px] px-6 py-10">
           <div className="rounded-[36px] border border-[#dde4ed] bg-white/90 p-8 shadow-[0_24px_80px_rgba(148,163,184,0.12)] backdrop-blur-xl md:p-10">
             <div className="flex flex-col gap-4 border-b border-[#e4e9f0] pb-6 md:flex-row md:items-end md:justify-between">
               <div>
@@ -460,8 +458,7 @@ export default function RecommendationsPage() {
             )}
           </div>
         </section>
-      </div>
-
+      </WorkspaceShell>
       <AuthModal
         onAuthSuccess={async () => {
           const token = readAccessToken();
@@ -474,6 +471,6 @@ export default function RecommendationsPage() {
         onClose={() => setAuthOpen(false)}
         open={authOpen}
       />
-    </main>
+    </>
   );
 }

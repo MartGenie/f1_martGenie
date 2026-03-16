@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { clearAccessToken, fetchCurrentUser, readAccessToken } from "@/lib/auth";
 import {
   createChatSession,
@@ -19,6 +19,7 @@ import {
   type OnboardingQuestion,
 } from "@/lib/memory-api";
 import AuthModal from "@/src/components/AuthModal";
+import WorkspaceShell from "@/src/components/WorkspaceShell";
 
 type FriendlyEvent = {
   title: string;
@@ -43,35 +44,6 @@ const STARTER_PROMPTS = [
   "Build a bedroom package with storage, warm wood tones, and pet-friendly fabrics.",
 ];
 const GUIDANCE_CHIPS = ["Living room", "Dining", "Bedroom", "Pet-friendly", "Budget-aware"];
-const HISTORY_PRESETS = [
-  {
-    id: "history-living-room",
-    title: "Living room refresh",
-    time: "11m ago",
-    preview: "Soft modern package, pet-friendly, under $3,000",
-    prompt: "Build a soft modern living room package with pet-friendly fabrics under $3,000.",
-  },
-  {
-    id: "history-dining",
-    title: "Dining shortlist",
-    time: "Yesterday",
-    preview: "Dining set for 4 with light oak and durable finishes",
-    prompt: "I need a dining package for 4 with light oak tones and durable finishes.",
-  },
-  {
-    id: "history-bedroom",
-    title: "Bedroom planning",
-    time: "2 days ago",
-    preview: "Bedroom package with storage and warm wood tones",
-    prompt: "Create a bedroom package with storage, warm wood tones, and soft lighting.",
-  },
-];
-const CHAT_NAV_ITEMS = [
-  { label: "Home", href: "/" },
-  { label: "Packages", href: "/recommendations" },
-  { label: "Negotiation", href: "/negotiation" },
-  { label: "Plaza", href: "/plaza" },
-];
 
 function buildFriendlyEvent(event: TimelineEvent): FriendlyEvent {
   const type = event.type.toLowerCase();
@@ -205,7 +177,6 @@ export default function ChatWorkspacePage() {
   const [isSending, setIsSending] = useState(false);
   const [runElapsedSec, setRunElapsedSec] = useState(0);
   const [streamText, setStreamText] = useState("");
-  const [selectedHistoryId, setSelectedHistoryId] = useState("current");
   const streamTextRef = useRef("");
   const plansRef = useRef<PlanOption[]>([]);
   const unsubscribeRef = useRef<(() => void) | null>(null);
@@ -557,24 +528,6 @@ export default function ChatWorkspacePage() {
       ]
     : messages;
   const hasConversation = renderedMessages.length > 0;
-  const currentConversationPreview = useMemo(() => {
-    const firstUserMessage = messages.find((message) => message.role === "user")?.content;
-    return firstUserMessage ? firstUserMessage.slice(0, 62) : "Start a new buying brief";
-  }, [messages]);
-  const sidebarHistory = useMemo(
-    () => [
-      {
-        id: "current",
-        title: hasConversation ? "Current workspace" : "New workspace",
-        time: hasConversation ? "Live" : "Ready",
-        preview: currentConversationPreview,
-        prompt: "",
-      },
-      ...HISTORY_PRESETS,
-    ],
-    [currentConversationPreview, hasConversation],
-  );
-
   function applyPromptSuggestion(value: string) {
     setPrompt(value);
   }
@@ -583,7 +536,6 @@ export default function ChatWorkspacePage() {
     unsubscribeRef.current?.();
     unsubscribeRef.current = null;
     clearSavedWorkspace();
-    setSelectedHistoryId("current");
     setMessages([]);
     setTimeline([]);
     setPlans([]);
@@ -600,130 +552,21 @@ export default function ChatWorkspacePage() {
   }
 
   return (
-    <main className="h-screen overflow-hidden bg-[linear-gradient(180deg,#f7f9fc_0%,#eef2f7_100%)] text-[#101828]">
-      <div className="h-full w-full">
-        <div className="h-full overflow-hidden border border-[#dbe3ed] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] lg:grid lg:grid-cols-[280px_minmax(0,1fr)_420px]">
-          <aside className="flex min-h-0 flex-col border-b border-[#e2e8f0] bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfe_100%)] lg:border-b-0 lg:border-r">
-            <div className="border-b border-[#e2e8f0] px-4 py-4">
-              <Link className="block" href="/">
-                <p className="font-mono text-lg font-black uppercase tracking-[0.34em] text-[#0f172a]">Nexbuy</p>
-              </Link>
-              <div className="mt-5 space-y-1">
-                <button
-                  className="inline-flex h-10 w-full items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-4 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.14)] transition hover:brightness-105"
-                  onClick={handleNewConversation}
-                  type="button"
-                >
-                  New conversation
-                </button>
-                <nav className="space-y-1 pt-2">
-                  <span className="block px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#98a2b3]">
-                    Navigation
-                  </span>
-                  <Link
-                    className="block rounded-[16px] px-3 py-2 text-sm font-medium text-[#123b5f] transition hover:bg-[#edf5ff]"
-                    href="/chat"
-                  >
-                    Chat
-                  </Link>
-                  {CHAT_NAV_ITEMS.map((item) => (
-                    <Link
-                      className="block rounded-[16px] px-3 py-2 text-sm font-medium text-[#526173] transition hover:bg-[#f4f7fb] hover:text-[#101828]"
-                      href={item.href}
-                      key={item.label}
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </nav>
-              </div>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
-              <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#98a2b3]">
-                Recent
-              </p>
-              <div className="space-y-1">
-                {sidebarHistory.map((item) => (
-                  <button
-                    className={`w-full rounded-[18px] px-3 py-3 text-left transition ${
-                      selectedHistoryId === item.id
-                        ? "bg-[#edf5ff] text-[#123b5f]"
-                        : "text-[#526173] hover:bg-[#f4f7fb]"
-                    }`}
-                    key={item.id}
-                    onClick={() => {
-                      setSelectedHistoryId(item.id);
-                      if (item.prompt) {
-                        setPrompt(item.prompt);
-                      }
-                    }}
-                    type="button"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="truncate text-sm font-medium">{item.title}</p>
-                      <span className="shrink-0 text-[11px] text-[#98a2b3]">{item.time}</span>
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#7b8798]">{item.preview}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="border-t border-[#e2e8f0] px-4 py-4">
-              {isAuthenticated ? (
-                <div className="rounded-[18px] bg-[linear-gradient(180deg,#f7fbff_0%,#eef5fd_100%)] px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,#8db4de,#1d4ed8)] text-sm font-bold text-white">
-                      NX
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-[#101828]">Signed in</p>
-                      <p className="mt-1 text-xs text-[#667085]">Workspace ready across chat and deals.</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <Link
-                      className="inline-flex h-10 flex-1 items-center justify-center rounded-2xl border border-[#d7e1ec] bg-white text-xs font-semibold text-[#344054] transition hover:border-[#bfd4ec] hover:bg-[#f8fbff]"
-                      href="/profile"
-                    >
-                      Profile
-                    </Link>
-                    <button
-                      className="inline-flex h-10 flex-1 items-center justify-center rounded-2xl border border-[#f1c7cf] bg-[#fff1f1] text-xs font-semibold text-[#b42318] transition hover:bg-[#ffe9ea]"
-                      onClick={() => {
-                        clearSavedWorkspace();
-                        clearAccessToken();
-                        setIsAuthenticated(false);
-                        router.push("/");
-                      }}
-                      type="button"
-                    >
-                      Sign out
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-[18px] bg-[linear-gradient(180deg,#f7fbff_0%,#eef5fd_100%)] px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7b8798]">Account</p>
-                  <p className="mt-2 text-sm font-medium text-[#101828]">Sign in to keep your workspace and deals.</p>
-                  <button
-                    className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] text-sm font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.14)] transition hover:brightness-105"
-                    onClick={() => setAuthOpen(true)}
-                    type="button"
-                  >
-                    Sign in
-                  </button>
-                </div>
-              )}
-              <div className="mt-3 rounded-[18px] bg-[linear-gradient(180deg,#f7fbff_0%,#eef5fd_100%)] px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7b8798]">Workspace</p>
-                <p className="mt-2 text-sm font-medium text-[#101828]">{status}</p>
-              </div>
-            </div>
-          </aside>
-
-          <section className="flex min-h-0 flex-col border-b border-[#e2e8f0] lg:border-b-0 lg:border-r">
+    <WorkspaceShell
+      currentPath="/chat"
+      isAuthenticated={isAuthenticated}
+      onOpenAuth={() => setAuthOpen(true)}
+      onSignOut={() => {
+        clearSavedWorkspace();
+        clearAccessToken();
+        setIsAuthenticated(false);
+        router.push("/");
+      }}
+      workspaceStatus={status}
+      onNewConversation={handleNewConversation}
+    >
+      <div className="h-full lg:grid lg:grid-cols-[minmax(0,1fr)_420px]">
+        <section className="flex min-h-0 flex-col border-b border-[#e2e8f0] lg:border-b-0 lg:border-r">
             <div className="flex items-center justify-between border-b border-[#e2e8f0] px-5 py-4 md:px-6">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#0f766e]">Live buying workflow</p>
@@ -762,7 +605,7 @@ export default function ChatWorkspacePage() {
                     search products, and build packages while the system log stays visible on the right.
                   </p>
 
-                  <div className="mt-8 w-full border border-[#e2e8f0] bg-white p-4">
+                  <div className="mt-8 w-full rounded-[28px] border border-[#e2e8f0] bg-white p-4">
                     <form onSubmit={handleSend}>
                       <textarea
                         className="min-h-[72px] w-full resize-none border-none bg-transparent px-1 py-1 text-[15px] leading-7 text-[#111827] outline-none placeholder:text-[#98a2b3]"
@@ -881,7 +724,7 @@ export default function ChatWorkspacePage() {
             ) : null}
           </section>
 
-          <aside className="flex min-h-0 flex-col bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)]">
+        <aside className="flex min-h-0 flex-col bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)]">
             <div className="flex items-center justify-between border-b border-[#dce4ee] px-5 py-4 md:px-5">
             <div>
               <p className="text-xs uppercase tracking-[0.22em] text-[#8b97a8]">Agent Process</p>
@@ -925,8 +768,7 @@ export default function ChatWorkspacePage() {
                 )}
               </div>
             </div>
-          </aside>
-        </div>
+        </aside>
       </div>
       {showOnboarding ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -1007,6 +849,6 @@ export default function ChatWorkspacePage() {
         onClose={() => setAuthOpen(false)}
         open={authOpen}
       />
-    </main>
+    </WorkspaceShell>
   );
 }

@@ -13,7 +13,7 @@ import {
   type PlazaShowcaseSummary,
 } from "@/lib/plaza-api";
 import AuthModal from "@/src/components/AuthModal";
-import Navbar from "@/src/components/Navbar";
+import WorkspaceShell from "@/src/components/WorkspaceShell";
 
 function formatMoney(value: number, currencySymbol = "$") {
   return `${currencySymbol}${value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
@@ -208,21 +208,19 @@ function renderRecommendationCard(product: PlazaRecommendationProduct) {
   }
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#f7fafc_0%,#edf3f9_44%,#e7eef7_100%)] text-[#0f172a]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(191,219,254,0.32),transparent_24%),radial-gradient(circle_at_82%_12%,rgba(148,163,184,0.18),transparent_18%),radial-gradient(circle_at_bottom_right,rgba(125,211,252,0.16),transparent_22%),linear-gradient(180deg,rgba(255,255,255,0.68)_0%,rgba(241,245,249,0.18)_100%)]" />
-      <div className="relative">
-        <Navbar
-          isAuthenticated={isAuthenticated}
-          isBlurred={authOpen}
-          onOpenAuth={() => setAuthOpen(true)}
-          onSignOut={() => {
-            clearAccessToken();
-            setIsAuthenticated(false);
-            setRecommendations(null);
-          }}
-        />
-
-        <section className="mx-auto max-w-[1380px] px-6 pb-16 pt-28">
+    <>
+      <WorkspaceShell
+        currentPath="/plaza"
+        isAuthenticated={isAuthenticated}
+        onOpenAuth={() => setAuthOpen(true)}
+        onSignOut={() => {
+          clearAccessToken();
+          setIsAuthenticated(false);
+          setRecommendations(null);
+        }}
+        workspaceStatus="Browsing public wins and personalized picks."
+      >
+        <section className="mx-auto max-w-[1380px] px-6 py-10">
           <div className="rounded-[40px] border border-[#dce5ef] bg-[linear-gradient(180deg,rgba(255,255,255,0.9)_0%,rgba(245,249,253,0.9)_100%)] p-8 shadow-[0_32px_90px_rgba(148,163,184,0.16)] backdrop-blur-xl md:p-10">
             {error ? (
               <div className="rounded-[24px] border border-[#fecaca] bg-[#fff1f2] px-5 py-4 text-sm font-medium text-[#b42318]">
@@ -425,31 +423,31 @@ function renderRecommendationCard(product: PlazaRecommendationProduct) {
             </div>
           </div>
         </section>
+      </WorkspaceShell>
 
-        <AuthModal
-          onAuthSuccess={async () => {
-            const token = readAccessToken();
-            if (!token) {
-              return;
-            }
-            await fetchCurrentUser(token);
-            setIsAuthenticated(true);
-            try {
-              const recommendationPayload = await fetchPlazaRecommendations();
-              setRecommendations(recommendationPayload);
-              setRecommendationError("");
-            } catch (recommendationLoadError) {
-              setRecommendationError(
-                recommendationLoadError instanceof Error
-                  ? recommendationLoadError.message
-                  : "Could not load personalized recommendations.",
-              );
-            }
-          }}
-          onClose={() => setAuthOpen(false)}
-          open={authOpen}
-        />
-      </div>
-    </main>
+      <AuthModal
+        onAuthSuccess={async () => {
+          const token = readAccessToken();
+          if (!token) {
+            return;
+          }
+          await fetchCurrentUser(token);
+          setIsAuthenticated(true);
+          try {
+            const recommendationPayload = await fetchPlazaRecommendations();
+            setRecommendations(recommendationPayload);
+            setRecommendationError("");
+          } catch (recommendationLoadError) {
+            setRecommendationError(
+              recommendationLoadError instanceof Error
+                ? recommendationLoadError.message
+                : "Could not load personalized recommendations.",
+            );
+          }
+        }}
+        onClose={() => setAuthOpen(false)}
+        open={authOpen}
+      />
+    </>
   );
 }

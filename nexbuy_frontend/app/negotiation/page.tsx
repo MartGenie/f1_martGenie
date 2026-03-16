@@ -19,7 +19,7 @@ import {
 import { readNegotiationRuns, writeNegotiatedDeal, writeNegotiationRun } from "@/lib/negotiation-store";
 import { setOrderCheckout } from "@/lib/order-store";
 import AuthModal from "@/src/components/AuthModal";
-import Navbar from "@/src/components/Navbar";
+import WorkspaceShell from "@/src/components/WorkspaceShell";
 
 type ChatBubble = {
   id: string;
@@ -612,9 +612,9 @@ export default function NegotiationPage() {
   ]);
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#f7f9fc_0%,#edf2f8_100%)] px-4 pb-6 pt-24 text-[#101828] md:px-6">
-      <Navbar
-        isBlurred={authOpen}
+    <>
+      <WorkspaceShell
+        currentPath="/negotiation"
         isAuthenticated={isAuthenticated}
         onOpenAuth={() => setAuthOpen(true)}
         onSignOut={() => {
@@ -622,8 +622,9 @@ export default function NegotiationPage() {
           setIsAuthenticated(false);
           router.push("/");
         }}
-      />
-      <div className="mx-auto grid w-full max-w-7xl gap-5 xl:grid-cols-[1.5fr_0.6fr]">
+        workspaceStatus={status}
+      >
+      <div className="mx-auto grid w-full max-w-7xl gap-5 px-6 py-10 xl:grid-cols-[1.5fr_0.6fr]">
         <section className="flex min-h-[84vh] flex-col rounded-[30px] border border-[#dbe4ef] bg-white/95 p-4 shadow-[0_24px_80px_rgba(148,163,184,0.14)] md:p-5 lg:p-6">
           <div className="flex items-center justify-between border-b border-[#e7edf4] pb-4">
             <div>
@@ -900,6 +901,7 @@ export default function NegotiationPage() {
           ) : null}
         </aside>
       </div>
+      </WorkspaceShell>
       <AuthModal
         onAuthSuccess={() => {
           setIsAuthenticated(true);
@@ -908,6 +910,6 @@ export default function NegotiationPage() {
         onClose={() => setAuthOpen(false)}
         open={authOpen}
       />
-    </main>
+    </>
   );
 }

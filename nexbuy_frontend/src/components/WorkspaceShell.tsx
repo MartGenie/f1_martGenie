@@ -1,0 +1,281 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+
+type WorkspaceShellProps = {
+  currentPath: string;
+  isAuthenticated: boolean;
+  onOpenAuth: () => void;
+  onSignOut: () => void;
+  workspaceStatus?: string;
+  onNewConversation?: () => void;
+  children: ReactNode;
+};
+
+type HistoryItem = {
+  id: string;
+  title: string;
+  time: string;
+  preview: string;
+  href: string;
+};
+
+const WORKSPACE_STORAGE_KEY = "nexbuy.chat.workspace";
+const NAV_ITEMS = [
+  { label: "Chat", href: "/chat" },
+  { label: "Packages", href: "/recommendations" },
+  { label: "Negotiation", href: "/negotiation" },
+  { label: "Plaza", href: "/plaza" },
+  { label: "Home", href: "/" },
+];
+
+const HISTORY_PRESETS: HistoryItem[] = [
+  {
+    id: "history-living-room",
+    title: "Living room refresh",
+    time: "11m ago",
+    preview: "Soft modern package, pet-friendly, under $3,000",
+    href: "/chat",
+  },
+  {
+    id: "history-dining",
+    title: "Dining shortlist",
+    time: "Yesterday",
+    preview: "Dining set for 4 with light oak and durable finishes",
+    href: "/chat",
+  },
+  {
+    id: "history-bedroom",
+    title: "Bedroom planning",
+    time: "2 days ago",
+    preview: "Bedroom package with storage and warm wood tones",
+    href: "/chat",
+  },
+];
+
+function readCurrentWorkspacePreview() {
+  if (typeof window === "undefined") {
+    return {
+      title: "Current workspace",
+      preview: "Start a new buying brief",
+    };
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(WORKSPACE_STORAGE_KEY);
+    if (!raw) {
+      return {
+        title: "Current workspace",
+        preview: "Start a new buying brief",
+      };
+    }
+    const parsed = JSON.parse(raw) as {
+      messages?: Array<{ role: string; content: string }>;
+    };
+    const firstUserMessage = parsed.messages?.find((message) => message.role === "user")?.content;
+    return {
+      title: firstUserMessage ? "Current workspace" : "New workspace",
+      preview: firstUserMessage ? firstUserMessage.slice(0, 62) : "Start a new buying brief",
+    };
+  } catch {
+    return {
+      title: "Current workspace",
+      preview: "Start a new buying brief",
+    };
+  }
+}
+
+function getDefaultWorkspacePreview() {
+  return {
+    title: "Current workspace",
+    preview: "Start a new buying brief",
+  };
+}
+
+function getDefaultWorkspacePreviewSnapshot() {
+  return JSON.stringify(getDefaultWorkspacePreview());
+}
+
+function subscribeWorkspacePreview(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  const handler = () => onStoreChange();
+  window.addEventListener("storage", handler);
+  window.addEventListener("focus", handler);
+  return () => {
+    window.removeEventListener("storage", handler);
+    window.removeEventListener("focus", handler);
+  };
+}
+
+function getWorkspacePreviewSnapshot() {
+  return JSON.stringify(readCurrentWorkspacePreview());
+}
+
+export default function WorkspaceShell({
+  currentPath,
+  isAuthenticated,
+  onOpenAuth,
+  onSignOut,
+  workspaceStatus,
+  onNewConversation,
+  children,
+}: WorkspaceShellProps) {
+  const router = useRouter();
+  const [selectedHistoryId, setSelectedHistoryId] = useState("current");
+  const workspacePreviewSnapshot = useSyncExternalStore(
+    subscribeWorkspacePreview,
+    getWorkspacePreviewSnapshot,
+    getDefaultWorkspacePreviewSnapshot,
+  );
+  const workspacePreview = useMemo(
+    () => JSON.parse(workspacePreviewSnapshot) as ReturnType<typeof getDefaultWorkspacePreview>,
+    [workspacePreviewSnapshot],
+  );
+
+  const historyItems = useMemo<HistoryItem[]>(
+    () => [
+      {
+        id: "current",
+        title: workspacePreview.title,
+        time: "Live",
+        preview: workspacePreview.preview,
+        href: "/chat",
+      },
+      ...HISTORY_PRESETS,
+    ],
+    [workspacePreview.preview, workspacePreview.title],
+  );
+
+  function handleNewConversation() {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
+      window.dispatchEvent(new Event("storage"));
+    }
+    setSelectedHistoryId("current");
+    onNewConversation?.();
+    router.push("/chat");
+  }
+
+  return (
+    <main className="h-screen overflow-hidden bg-[linear-gradient(180deg,#f7f9fc_0%,#eef2f7_100%)] text-[#101828]">
+      <div className="h-full w-full">
+        <div className="h-full overflow-hidden border border-[#dbe3ed] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="flex min-h-0 flex-col border-b border-[#e2e8f0] bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfe_100%)] lg:border-b-0 lg:border-r">
+            <div className="border-b border-[#e2e8f0] px-4 py-4">
+              <Link className="block" href="/">
+                <p className="font-mono text-lg font-black uppercase tracking-[0.34em] text-[#0f172a]">Nexbuy</p>
+              </Link>
+              <div className="mt-5 space-y-1">
+                <button
+                  className="inline-flex h-10 w-full items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-4 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.14)] transition hover:brightness-105"
+                  onClick={handleNewConversation}
+                  type="button"
+                >
+                  New conversation
+                </button>
+                <nav className="space-y-1 pt-2">
+                  <span className="block px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#98a2b3]">
+                    Navigation
+                  </span>
+                  {NAV_ITEMS.map((item) => (
+                    <Link
+                      className={`block rounded-[16px] px-3 py-2 text-sm font-medium transition ${
+                        currentPath === item.href
+                          ? "bg-[#edf5ff] text-[#123b5f]"
+                          : "text-[#526173] hover:bg-[#f4f7fb] hover:text-[#101828]"
+                      }`}
+                      href={item.href}
+                      key={item.label}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </nav>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
+              <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#98a2b3]">
+                Recent
+              </p>
+              <div className="space-y-1">
+                {historyItems.map((item) => (
+                  <Link
+                    className={`block w-full rounded-[18px] px-3 py-3 text-left transition ${
+                      selectedHistoryId === item.id
+                        ? "bg-[#edf5ff] text-[#123b5f]"
+                        : "text-[#526173] hover:bg-[#f4f7fb]"
+                    }`}
+                    href={item.href}
+                    key={item.id}
+                    onClick={() => setSelectedHistoryId(item.id)}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="truncate text-sm font-medium">{item.title}</p>
+                      <span className="shrink-0 text-[11px] text-[#98a2b3]">{item.time}</span>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#7b8798]">{item.preview}</p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-[#e2e8f0] px-4 py-4">
+              {isAuthenticated ? (
+                <div className="rounded-[18px] bg-[linear-gradient(180deg,#f7fbff_0%,#eef5fd_100%)] px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,#8db4de,#1d4ed8)] text-sm font-bold text-white">
+                      NX
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-[#101828]">Signed in</p>
+                      <p className="mt-1 text-xs text-[#667085]">Workspace ready across chat and deals.</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <Link
+                      className="inline-flex h-10 flex-1 items-center justify-center rounded-2xl border border-[#d7e1ec] bg-white text-xs font-semibold text-[#344054] transition hover:border-[#bfd4ec] hover:bg-[#f8fbff]"
+                      href="/profile"
+                    >
+                      Profile
+                    </Link>
+                    <button
+                      className="inline-flex h-10 flex-1 items-center justify-center rounded-2xl border border-[#f1c7cf] bg-[#fff1f1] text-xs font-semibold text-[#b42318] transition hover:bg-[#ffe9ea]"
+                      onClick={onSignOut}
+                      type="button"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-[18px] bg-[linear-gradient(180deg,#f7fbff_0%,#eef5fd_100%)] px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7b8798]">Account</p>
+                  <p className="mt-2 text-sm font-medium text-[#101828]">Sign in to keep your workspace and deals.</p>
+                  <button
+                    className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] text-sm font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.14)] transition hover:brightness-105"
+                    onClick={onOpenAuth}
+                    type="button"
+                  >
+                    Sign in
+                  </button>
+                </div>
+              )}
+              <div className="mt-3 rounded-[18px] bg-[linear-gradient(180deg,#f7fbff_0%,#eef5fd_100%)] px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7b8798]">Workspace</p>
+                <p className="mt-2 text-sm font-medium text-[#101828]">{workspaceStatus ?? "Ready to continue."}</p>
+              </div>
+            </div>
+          </aside>
+
+          <div className="min-h-0 overflow-y-auto">{children}</div>
+        </div>
+      </div>
+    </main>
+  );
+}
