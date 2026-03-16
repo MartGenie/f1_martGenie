@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { clearAccessToken, fetchCurrentUser, readAccessToken } from "@/lib/auth";
 import type { PlanOption } from "@/lib/chat-api";
@@ -16,6 +16,7 @@ type SavedWorkspaceState = {
   messages?: ChatMessage[];
   timeline?: TimelineEvent[];
   plans: PlanOption[];
+  packageSnapshots?: Record<string, PlanOption[]>;
   activePlanId: string | null;
   status?: string;
 };
@@ -86,12 +87,25 @@ function getSuggestedMax(price: number) {
 
 export default function RecommendationsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedSnapshotId = searchParams.get("snapshot");
   const initialWorkspace = readSavedWorkspace();
   const [authOpen, setAuthOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(readAccessToken()));
   const [plans] = useState<PlanOption[]>(initialWorkspace?.plans ?? []);
+  const [packageSnapshots] = useState<Record<string, PlanOption[]>>(initialWorkspace?.packageSnapshots ?? {});
+  const selectedPlans = useMemo(
+    () =>
+      requestedSnapshotId && packageSnapshots[requestedSnapshotId]
+        ? packageSnapshots[requestedSnapshotId]
+        : plans,
+    [packageSnapshots, plans, requestedSnapshotId],
+  );
   const [activePlanId, setActivePlanId] = useState<string | null>(
-    initialWorkspace?.activePlanId ?? initialWorkspace?.plans?.[0]?.id ?? null,
+    (requestedSnapshotId && packageSnapshots[requestedSnapshotId]?.[0]?.id) ??
+      initialWorkspace?.activePlanId ??
+      initialWorkspace?.plans?.[0]?.id ??
+      null,
   );
   const [expandedNegotiationSku, setExpandedNegotiationSku] = useState<string | null>(null);
   const [targetPriceDrafts, setTargetPriceDrafts] = useState<Record<string, string>>({});
@@ -116,22 +130,23 @@ export default function RecommendationsPage() {
     writeSavedWorkspace({
       sessionId: initialWorkspace.sessionId ?? null,
       plans,
+      packageSnapshots,
       activePlanId,
     });
-  }, [activePlanId, initialWorkspace, plans]);
+  }, [activePlanId, initialWorkspace, packageSnapshots, plans]);
 
   const negotiatedDeals = readNegotiatedDeals();
   const storedNegotiationRuns = readNegotiationRuns();
   const displayedPlans = useMemo(
     () =>
-      plans.map((plan) => ({
+      selectedPlans.map((plan) => ({
         ...plan,
         items: plan.items.map((item) => {
           const deal = negotiatedDeals[item.sku];
           return deal ? { ...item, price: deal.negotiatedPrice } : item;
         }),
       })),
-    [plans, negotiatedDeals],
+    [negotiatedDeals, selectedPlans],
   );
 
   const activePlan =

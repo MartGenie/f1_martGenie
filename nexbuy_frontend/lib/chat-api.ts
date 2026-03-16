@@ -17,6 +17,7 @@ type SessionDumpResponse = {
   messages: ChatMessage[];
   timeline: TimelineEvent[];
   plans: PlanOption[];
+  packageSnapshots?: Record<string, PlanOption[]>;
 };
 
 const DEFAULT_CHAT_MODE = "mock";

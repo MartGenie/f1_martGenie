@@ -9,7 +9,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
@@ -32,6 +31,7 @@ type HistoryItem = {
 };
 
 const WORKSPACE_STORAGE_KEY = "nexbuy.chat.workspace";
+const CHAT_HISTORY_REFRESH_EVENT = "nexbuy.chat.history.updated";
 const NAV_ITEMS = [
   { label: "Chat", href: "/chat" },
   { label: "Packages", href: "/recommendations" },
@@ -65,67 +65,6 @@ const HISTORY_PRESETS: HistoryItem[] = [
   },
 ];
 
-function readCurrentWorkspacePreview() {
-  if (typeof window === "undefined") {
-    return {
-      title: "Current workspace",
-      preview: "Start a new buying brief",
-    };
-  }
-
-  try {
-    const raw = window.sessionStorage.getItem(WORKSPACE_STORAGE_KEY);
-    if (!raw) {
-      return {
-        title: "Current workspace",
-        preview: "Start a new buying brief",
-      };
-    }
-    const parsed = JSON.parse(raw) as {
-      messages?: Array<{ role: string; content: string }>;
-    };
-    const firstUserMessage = parsed.messages?.find((message) => message.role === "user")?.content;
-    return {
-      title: firstUserMessage ? "Current workspace" : "New workspace",
-      preview: firstUserMessage ? firstUserMessage.slice(0, 62) : "Start a new buying brief",
-    };
-  } catch {
-    return {
-      title: "Current workspace",
-      preview: "Start a new buying brief",
-    };
-  }
-}
-
-function getDefaultWorkspacePreview() {
-  return {
-    title: "Current workspace",
-    preview: "Start a new buying brief",
-  };
-}
-
-function getDefaultWorkspacePreviewSnapshot() {
-  return JSON.stringify(getDefaultWorkspacePreview());
-}
-
-function subscribeWorkspacePreview(onStoreChange: () => void) {
-  if (typeof window === "undefined") {
-    return () => {};
-  }
-
-  const handler = () => onStoreChange();
-  window.addEventListener("storage", handler);
-  window.addEventListener("focus", handler);
-  return () => {
-    window.removeEventListener("storage", handler);
-    window.removeEventListener("focus", handler);
-  };
-}
-
-function getWorkspacePreviewSnapshot() {
-  return JSON.stringify(readCurrentWorkspacePreview());
-}
-
 export default function WorkspaceShell({
   currentPath,
   isAuthenticated,
@@ -141,29 +80,55 @@ export default function WorkspaceShell({
   const [userEmail, setUserEmail] = useState("");
   const [remoteHistoryItems, setRemoteHistoryItems] = useState<HistoryItem[]>([]);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
-  const workspacePreviewSnapshot = useSyncExternalStore(
-    subscribeWorkspacePreview,
-    getWorkspacePreviewSnapshot,
-    getDefaultWorkspacePreviewSnapshot,
-  );
-  const workspacePreview = useMemo(
-    () => JSON.parse(workspacePreviewSnapshot) as ReturnType<typeof getDefaultWorkspacePreview>,
-    [workspacePreviewSnapshot],
-  );
 
   const historyItems = useMemo<HistoryItem[]>(
-    () => [
-      {
-        id: "current",
-        title: workspacePreview.title,
-        time: "Live",
-        preview: workspacePreview.preview,
-        href: "/chat",
-      },
-      ...(isAuthenticated ? remoteHistoryItems : HISTORY_PRESETS),
-    ],
-    [isAuthenticated, remoteHistoryItems, workspacePreview.preview, workspacePreview.title],
+    () => (isAuthenticated ? remoteHistoryItems : HISTORY_PRESETS),
+    [isAuthenticated, remoteHistoryItems],
   );
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadHistory() {
+      try {
+        const sessions = await fetchChatHistory();
+        if (cancelled) {
+          return;
+        }
+        setRemoteHistoryItems(
+          sessions.map((session) => ({
+            id: session.session_id,
+            title: session.title,
+            time: new Date(session.updated_at).toLocaleDateString(),
+            preview: session.preview,
+            href: `/chat?session=${encodeURIComponent(session.session_id)}`,
+          })),
+        );
+      } catch {
+        if (!cancelled) {
+          setRemoteHistoryItems([]);
+        }
+      }
+    }
+
+    void loadHistory();
+
+    function handleRefresh() {
+      void loadHistory();
+    }
+
+    window.addEventListener(CHAT_HISTORY_REFRESH_EVENT, handleRefresh);
+    window.addEventListener("focus", handleRefresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(CHAT_HISTORY_REFRESH_EVENT, handleRefresh);
+      window.removeEventListener("focus", handleRefresh);
+    };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -180,27 +145,7 @@ export default function WorkspaceShell({
       .catch(() => clearAccessToken());
   }, [isAuthenticated]);
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      return;
-    }
-
-    void fetchChatHistory()
-      .then((sessions) =>
-        setRemoteHistoryItems(
-          sessions.map((session) => ({
-            id: session.session_id,
-            title: session.title,
-            time: new Date(session.updated_at).toLocaleDateString(),
-            preview: session.preview,
-            href: `/chat?session=${encodeURIComponent(session.session_id)}`,
-          })),
-        ),
-      )
-      .catch(() => setRemoteHistoryItems([]));
-  }, [isAuthenticated]);
-
-  const activeHistoryId = currentSessionId ?? (currentPath === "/chat" ? "current" : selectedHistoryId);
+  const activeHistoryId = currentSessionId ?? selectedHistoryId;
 
   useEffect(() => {
     if (!accountMenuOpen) {

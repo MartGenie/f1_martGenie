@@ -31,16 +31,17 @@ type SavedWorkspaceState = {
   messages: ChatMessage[];
   timeline: TimelineEvent[];
   plans: PlanOption[];
+  packageSnapshots?: Record<string, PlanOption[]>;
   activePlanId: string | null;
   status: string;
 };
 
 const WORKSPACE_STORAGE_KEY = "nexbuy.chat.workspace";
+const CHAT_HISTORY_REFRESH_EVENT = "nexbuy.chat.history.updated";
 const LEGACY_AI_STATUS = "AI is analyzing your request...";
 const AGENT_ANALYZING_STATUS = "Agent is analyzing your request...";
 const STARTER_PROMPTS = [
-  "Small living room, soft modern, under $3,000.",
-  "Dining setup for 4, easy-clean materials, calm palette.",
+  "I have a budget of $5000 for modern minimalist living room furniture. I mainly need a sectional sofa and a solid wood coffee table. I have a Golden Retriever, so the fabric needs to be scratch-resistant.",
 ];
 
 function buildFriendlyEvent(event: TimelineEvent): FriendlyEvent {
@@ -140,6 +141,8 @@ function normalizeWorkspace(raw: SavedWorkspaceState | null) {
     messages: Array.isArray(raw.messages) ? raw.messages : [],
     timeline: Array.isArray(raw.timeline) ? raw.timeline : [],
     plans: Array.isArray(raw.plans) ? raw.plans : [],
+    packageSnapshots:
+      raw.packageSnapshots && typeof raw.packageSnapshots === "object" ? raw.packageSnapshots : {},
     activePlanId: raw.activePlanId ?? null,
     status: typeof raw.status === "string" ? raw.status : "Preparing workspace...",
   } satisfies SavedWorkspaceState;
@@ -153,6 +156,14 @@ function clearSavedWorkspace() {
   window.sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
 }
 
+function notifyHistoryRefresh() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new Event(CHAT_HISTORY_REFRESH_EVENT));
+}
+
 
 export default function ChatWorkspacePage() {
   const router = useRouter();
@@ -163,6 +174,7 @@ export default function ChatWorkspacePage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [plans, setPlans] = useState<PlanOption[]>([]);
+  const [packageSnapshots, setPackageSnapshots] = useState<Record<string, PlanOption[]>>({});
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -179,6 +191,7 @@ export default function ChatWorkspacePage() {
   const [streamText, setStreamText] = useState("");
   const streamTextRef = useRef("");
   const plansRef = useRef<PlanOption[]>([]);
+  const packageSnapshotIdRef = useRef<string | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const runStartRef = useRef<number | null>(null);
   const restoredWorkspaceRef = useRef(false);
@@ -199,6 +212,7 @@ export default function ChatWorkspacePage() {
         setMessages(restoredWorkspace.messages);
         setTimeline(restoredWorkspace.timeline);
         setPlans(restoredWorkspace.plans);
+        setPackageSnapshots(restoredWorkspace.packageSnapshots ?? {});
         setActivePlanId(restoredWorkspace.activePlanId);
         setStatus(normalizeStatus(restoredWorkspace.status));
         plansRef.current = restoredWorkspace.plans;
@@ -237,6 +251,7 @@ export default function ChatWorkspacePage() {
         setMessages(dump.messages);
         setTimeline([]);
         setPlans(dump.plans);
+        setPackageSnapshots(dump.packageSnapshots ?? {});
         setActivePlanId(dump.plans[0]?.id ?? null);
         setStatus("Workspace restored.");
         setError("");
@@ -265,12 +280,13 @@ export default function ChatWorkspacePage() {
       messages,
       timeline,
       plans,
+      packageSnapshots,
       activePlanId,
       status,
     };
 
     window.sessionStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(payload));
-  }, [activePlanId, isWorkspaceHydrated, messages, plans, sessionId, status, timeline]);
+  }, [activePlanId, isWorkspaceHydrated, messages, packageSnapshots, plans, sessionId, status, timeline]);
 
   useEffect(() => {
     if (!isSending) {
@@ -388,6 +404,7 @@ export default function ChatWorkspacePage() {
 
     try {
       const { taskId } = await sendChatMessage(sessionId, content);
+      notifyHistoryRefresh();
       setTimeline((current) => [
         {
           id: `t-${crypto.randomUUID()}`,
@@ -423,6 +440,13 @@ export default function ChatWorkspacePage() {
 
         if (eventPayload.type === "plan_ready") {
           setPlans(eventPayload.plans);
+          if (eventPayload.snapshotId) {
+            setPackageSnapshots((current) => ({
+              ...current,
+              [eventPayload.snapshotId as string]: eventPayload.plans,
+            }));
+          }
+          packageSnapshotIdRef.current = eventPayload.snapshotId ?? null;
           plansRef.current = eventPayload.plans;
           if (eventPayload.plans.length > 0) {
             setActivePlanId(eventPayload.plans[0].id);
@@ -448,6 +472,8 @@ export default function ChatWorkspacePage() {
                 role: "assistant",
                 content: finalizedMessage,
                 createdAt: new Date().toISOString(),
+                packageSnapshotId:
+                  plansRef.current.length > 0 ? packageSnapshotIdRef.current ?? undefined : undefined,
               },
             ]);
           }
@@ -455,9 +481,14 @@ export default function ChatWorkspacePage() {
           streamTextRef.current = "";
           setIsSending(false);
           setStatus("Done. You can refine requirements or ask for alternatives.");
+          notifyHistoryRefresh();
           if (plansRef.current.length > 0) {
             window.setTimeout(() => {
-              router.push("/recommendations");
+              router.push(
+                packageSnapshotIdRef.current
+                  ? `/recommendations?snapshot=${encodeURIComponent(packageSnapshotIdRef.current)}`
+                  : "/recommendations",
+              );
             }, 180);
           }
         }
@@ -470,6 +501,7 @@ export default function ChatWorkspacePage() {
         setMessages([]);
         setTimeline([]);
         setPlans([]);
+        setPackageSnapshots({});
         setActivePlanId(null);
         setPrompt(content);
         setError("Your previous chat expired after the backend restarted. A new workspace is being prepared.");
@@ -582,6 +614,7 @@ export default function ChatWorkspacePage() {
     setMessages([]);
     setTimeline([]);
     setPlans([]);
+    setPackageSnapshots({});
     setActivePlanId(null);
     setPrompt("");
     setError("");
@@ -695,6 +728,19 @@ export default function ChatWorkspacePage() {
                         <span className="ml-2 text-xs text-[#98a2b3]">({runElapsedSec}s)</span>
                       ) : null}
                     </p>
+                    {message.role === "assistant" && message.packageSnapshotId ? (
+                      <button
+                        className="mt-3 inline-flex items-center rounded-full border border-[#d6e4f5] bg-white px-3 py-1.5 text-xs font-semibold text-[#1f4f78] transition hover:border-[#bfd4ec] hover:bg-[#eef6ff]"
+                        onClick={() =>
+                          router.push(
+                            `/recommendations?snapshot=${encodeURIComponent(message.packageSnapshotId as string)}`,
+                          )
+                        }
+                        type="button"
+                      >
+                        View packages
+                      </button>
+                    ) : null}
                   </article>
                 ))
               )}

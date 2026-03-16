@@ -20,6 +20,7 @@ from src.chat_history.service import (
     load_chat_history,
     load_chat_session_dump,
     mark_session_failed,
+    persist_package_snapshot,
     persist_assistant_message,
     replace_session_plans,
 )
@@ -173,6 +174,7 @@ class SessionDumpResponse(BaseModel):
     messages: list[dict[str, Any]]
     timeline: list[dict[str, Any]]
     plans: list[dict[str, Any]]
+    packageSnapshots: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
 
 
 class OrderItemIn(BaseModel):
@@ -296,6 +298,7 @@ async def get_session(
         messages=session_dump["messages"],
         timeline=[],
         plans=session_dump["plans"],
+        packageSnapshots=session_dump.get("packageSnapshots", {}),
     )
 
 
@@ -491,6 +494,7 @@ async def stream_session(session_id: str, task_id: str = Query(...)) -> Streamin
                 )
 
                 plans: list[dict[str, Any]] = []
+                package_snapshot_id: str | None = None
                 target_labels = [t.category for t in analysis.target_items if t.category]
                 product_map = {p.sku_id_default: p for p in query_result.products}
 
@@ -566,9 +570,19 @@ async def stream_session(session_id: str, task_id: str = Query(...)) -> Streamin
 
                 plans = plans[:5]
                 session["plans"] = plans
+                if plans:
+                    package_snapshot_id = _new_id("pkg")
                 if user_id_raw:
                     try:
                         async with async_session_maker() as db_session:
+                            if package_snapshot_id:
+                                await persist_package_snapshot(
+                                    db_session,
+                                    user_id=UUID(user_id_raw),
+                                    session_id=session_id,
+                                    snapshot_id=package_snapshot_id,
+                                    plans=plans,
+                                )
                             await replace_session_plans(
                                 db_session,
                                 user_id=UUID(user_id_raw),
@@ -589,7 +603,7 @@ async def stream_session(session_id: str, task_id: str = Query(...)) -> Streamin
                 )
                 yield add_timeline("bundle_built", f"Generated {len(plans)} bundle option(s).")
                 yield add_timeline("plan_ready", "Prepared order-ready recommendation popup.")
-                yield _sse({"type": "plan_ready", "plans": plans})
+                yield _sse({"type": "plan_ready", "plans": plans, "snapshotId": package_snapshot_id})
                 assistant_text = (
                     f"I found {len(query_result.products)} products matching your request "
                     f"and built {len(plans)} bundle option(s). "
@@ -617,6 +631,7 @@ async def stream_session(session_id: str, task_id: str = Query(...)) -> Streamin
                             session_id=session_id,
                             message_id=assistant_message["id"],
                             content=assistant_text,
+                            package_snapshot_id=package_snapshot_id,
                         )
                 except Exception:
                     logger.exception(

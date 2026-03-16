@@ -5,6 +5,7 @@ export type ChatMessage = {
   role: ChatRole;
   content: string;
   createdAt: string;
+  packageSnapshotId?: string;
 };
 
 export type TimelineEventType =
@@ -50,7 +51,7 @@ export type StreamEvent =
   | { type: "message_delta"; delta: string }
   | { type: "message"; message: ChatMessage }
   | { type: "timeline_event"; event: TimelineEvent }
-  | { type: "plan_ready"; plans: PlanOption[] }
+  | { type: "plan_ready"; plans: PlanOption[]; snapshotId?: string | null }
   | { type: "done" }
   | { type: "error"; error: string };
 

@@ -8,7 +8,13 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.chat_history.schema import ChatHistoryItemOut, ChatHistoryListOut
-from src.web.chat.models import ChatMessageRecord, ChatPlanItemRecord, ChatPlanRecord, ChatSessionRecord
+from src.web.chat.models import (
+    ChatMessageRecord,
+    ChatPackageSnapshotRecord,
+    ChatPlanItemRecord,
+    ChatPlanRecord,
+    ChatSessionRecord,
+)
 
 
 def _now() -> datetime:
@@ -96,6 +102,7 @@ async def persist_assistant_message(
     session_id: str,
     message_id: str,
     content: str,
+    package_snapshot_id: str | None = None,
 ) -> None:
     session_row = await get_chat_session_row(session, user_id, session_id)
     if session_row is None:
@@ -120,7 +127,41 @@ async def persist_assistant_message(
             sequence_index=int(next_index) + 1,
         )
     )
+    if package_snapshot_id:
+        snapshot_row = await session.scalar(
+            select(ChatPackageSnapshotRecord).where(
+                ChatPackageSnapshotRecord.id == package_snapshot_id,
+                ChatPackageSnapshotRecord.user_id == user_id,
+                ChatPackageSnapshotRecord.session_id == session_id,
+            )
+        )
+        if snapshot_row is not None:
+            snapshot_row.message_id = message_id
     session_row.last_assistant_message = content
+    session_row.last_activity_at = _now()
+    await session.commit()
+
+
+async def persist_package_snapshot(
+    session: AsyncSession,
+    *,
+    user_id: UUID,
+    session_id: str,
+    snapshot_id: str,
+    plans: list[dict[str, Any]],
+) -> None:
+    session_row = await get_chat_session_row(session, user_id, session_id)
+    if session_row is None:
+        return
+
+    session.add(
+        ChatPackageSnapshotRecord(
+            id=snapshot_id,
+            session_id=session_id,
+            user_id=user_id,
+            plans_json=plans,
+        )
+    )
     session_row.last_activity_at = _now()
     await session.commit()
 
@@ -236,6 +277,13 @@ async def load_chat_session_dump(
             .order_by(ChatPlanRecord.position.asc())
         )
     ).all()
+    snapshot_rows = (
+        await session.scalars(
+            select(ChatPackageSnapshotRecord)
+            .where(ChatPackageSnapshotRecord.session_id == session_id)
+            .order_by(ChatPackageSnapshotRecord.created_at.asc())
+        )
+    ).all()
 
     plans: list[dict[str, Any]] = []
     for plan_row in plan_rows:
@@ -271,6 +319,10 @@ async def load_chat_session_dump(
             }
         )
 
+    snapshot_message_map = {
+        snapshot.message_id: snapshot.id for snapshot in snapshot_rows if snapshot.message_id
+    }
+
     return {
         "session_id": session_id,
         "messages": [
@@ -279,10 +331,12 @@ async def load_chat_session_dump(
                 "role": row.role,
                 "content": row.content,
                 "createdAt": row.created_at.isoformat(),
+                "packageSnapshotId": snapshot_message_map.get(row.id),
             }
             for row in message_rows
         ],
         "timeline": [],
         "plans": plans,
+        "packageSnapshots": {snapshot.id: snapshot.plans_json for snapshot in snapshot_rows},
         "title": session_row.title or "New workspace",
     }
