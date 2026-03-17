@@ -6,6 +6,7 @@ import {
   fetchCurrentUser,
   readAccessToken,
   readAuthUserEmail,
+  saveAuthUserId,
   saveAuthUserEmail,
 } from "@/lib/auth";
 import { fetchChatHistory } from "@/lib/chat-api";
@@ -137,6 +138,9 @@ export default function WorkspaceShell({
     void fetchCurrentUser(token)
       .then((user) => {
         saveAuthUserEmail(user.email);
+        if (user.id) {
+          saveAuthUserId(user.id);
+        }
       })
       .catch(() => clearAccessToken());
   }, [authToken, effectiveAuthenticated]);

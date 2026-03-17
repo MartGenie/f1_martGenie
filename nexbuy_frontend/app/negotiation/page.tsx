@@ -2,7 +2,14 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { clearAccessToken, fetchCurrentUser, readAccessToken } from "@/lib/auth";
+import {
+  clearAccessToken,
+  fetchCurrentUser,
+  readAccessToken,
+  readAuthUserId,
+  saveAuthUserEmail,
+  saveAuthUserId,
+} from "@/lib/auth";
 import {
   cancelBuyerAgentNegotiation,
   createNegotiationSession,
@@ -115,6 +122,7 @@ export default function NegotiationPage() {
   const imageUrl = searchParams.get("imageUrl");
   const planId = searchParams.get("planId") ?? undefined;
   const planTitle = searchParams.get("planTitle") ?? "Recommended bundle";
+  const sessionId = searchParams.get("sessionId") ?? undefined;
   const queryTargetPrice = searchParams.get("targetPrice");
   const queryMaxAcceptablePrice = searchParams.get("maxAcceptablePrice");
 
@@ -150,6 +158,15 @@ export default function NegotiationPage() {
   const resolvedPlanId = planId ?? fallbackRun?.planId;
   const resolvedPlanTitle =
     planTitle !== "Recommended bundle" ? planTitle : fallbackRun?.planTitle || "Recommended bundle";
+  const resolvedSessionId = sessionId ?? fallbackRun?.sessionId ?? undefined;
+  const negotiationScope = useMemo(
+    () => ({
+      userId: readAuthUserId(),
+      sessionId: resolvedSessionId ?? null,
+      planId: resolvedPlanId ?? null,
+    }),
+    [resolvedPlanId, resolvedSessionId],
+  );
 
   const priceLabel = useMemo(() => {
     const amount = resolvedPrice ? Number(resolvedPrice) : null;
@@ -188,10 +205,12 @@ export default function NegotiationPage() {
       result?: BuyerAgentRunResult | null;
     }) => {
       writeNegotiationRun({
+        userId: negotiationScope.userId || "anonymous",
+        sessionId: negotiationScope.sessionId || "global",
+        planId: negotiationScope.planId || "global",
         sku: resolvedSku,
         title: resolvedTitle,
         originalPrice: Number(resolvedPrice ?? 0),
-        planId: resolvedPlanId,
         planTitle: resolvedPlanTitle,
         targetPrice: Number(targetPrice) || 0,
         maxAcceptablePrice: Number(maxAcceptablePrice) || 0,
@@ -204,14 +223,24 @@ export default function NegotiationPage() {
         savedAt: new Date().toISOString(),
       });
     },
-    [maxAcceptablePrice, resolvedPlanId, resolvedPlanTitle, resolvedPrice, resolvedSku, resolvedTitle, targetPrice],
+    [
+      maxAcceptablePrice,
+      negotiationScope.planId,
+      negotiationScope.sessionId,
+      negotiationScope.userId,
+      resolvedPlanTitle,
+      resolvedPrice,
+      resolvedSku,
+      resolvedTitle,
+      targetPrice,
+    ],
   );
 
   useEffect(() => {
     if (sku) {
       return;
     }
-    setFallbackRun(getLatestNegotiationRun());
+    setFallbackRun(getLatestNegotiationRun({ userId: readAuthUserId() }));
   }, [sku]);
 
   useEffect(() => {
@@ -219,7 +248,7 @@ export default function NegotiationPage() {
       return;
     }
 
-    const storedRuns = readNegotiationRuns();
+    const storedRuns = readNegotiationRuns(negotiationScope);
     const stored = storedRuns[resolvedSku];
     if (!stored) {
       if (queryTargetPrice) {
@@ -234,7 +263,7 @@ export default function NegotiationPage() {
     setTargetPrice(String(stored.targetPrice));
     setMaxAcceptablePrice(String(stored.maxAcceptablePrice));
     applyStoredRun(stored);
-  }, [queryMaxAcceptablePrice, queryTargetPrice, resolvedSku]);
+  }, [negotiationScope, queryMaxAcceptablePrice, queryTargetPrice, resolvedSku]);
 
   useEffect(() => {
     if (!resolvedSku) {
@@ -242,7 +271,7 @@ export default function NegotiationPage() {
     }
 
     const timer = window.setInterval(() => {
-      const stored = readNegotiationRuns()[resolvedSku];
+      const stored = readNegotiationRuns(negotiationScope)[resolvedSku];
       if (!stored) {
         return;
       }
@@ -250,7 +279,7 @@ export default function NegotiationPage() {
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [resolvedSku]);
+  }, [negotiationScope, resolvedSku]);
 
   useEffect(() => {
     let cancelled = false;
@@ -262,7 +291,7 @@ export default function NegotiationPage() {
         return;
       }
 
-      const storedRun = readNegotiationRuns()[resolvedSku];
+      const storedRun = readNegotiationRuns(negotiationScope)[resolvedSku];
 
       if (!storedRun) {
         if (queryTargetPrice) {
@@ -288,7 +317,11 @@ export default function NegotiationPage() {
       }
 
       try {
-        await fetchCurrentUser(token);
+        const user = await fetchCurrentUser(token);
+        saveAuthUserEmail(user.email);
+        if (user.id) {
+          saveAuthUserId(user.id);
+        }
         setIsAuthenticated(true);
       } catch {
         clearAccessToken();
@@ -343,7 +376,15 @@ export default function NegotiationPage() {
     return () => {
       cancelled = true;
     };
-  }, [priceLabel, queryMaxAcceptablePrice, queryTargetPrice, resolvedPrice, resolvedSku, resolvedTitle]);
+  }, [
+    negotiationScope,
+    priceLabel,
+    queryMaxAcceptablePrice,
+    queryTargetPrice,
+    resolvedPrice,
+    resolvedSku,
+    resolvedTitle,
+  ]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -381,11 +422,13 @@ export default function NegotiationPage() {
       setManualMessages((current) => [...current, buildSellerBubble(turn)]);
       if (refreshedSession.closed && refreshedSession.accepted_price) {
         writeNegotiatedDeal({
+          userId: negotiationScope.userId || "anonymous",
+          sessionId: negotiationScope.sessionId || "global",
+          planId: negotiationScope.planId || "global",
           sku: resolvedSku,
           title: resolvedTitle,
           originalPrice: Number(resolvedPrice ?? 0),
           negotiatedPrice: refreshedSession.accepted_price,
-          planId: resolvedPlanId,
           planTitle: resolvedPlanTitle,
           acceptedAt: new Date().toISOString(),
         });
@@ -533,10 +576,12 @@ export default function NegotiationPage() {
       agentTurnsRef.current = event.result.turns;
       setStatus(event.result.summary);
       writeNegotiationRun({
+        userId: negotiationScope.userId || "anonymous",
+        sessionId: negotiationScope.sessionId || "global",
+        planId: negotiationScope.planId || "global",
         sku: resolvedSku,
         title: resolvedTitle,
         originalPrice: Number(resolvedPrice ?? 0),
-        planId: resolvedPlanId,
         planTitle: resolvedPlanTitle,
         targetPrice: event.result.target_price,
         maxAcceptablePrice: event.result.max_acceptable_price,
@@ -550,11 +595,13 @@ export default function NegotiationPage() {
       });
       if (event.result.outcome === "accepted" && typeof event.result.final_price === "number") {
         writeNegotiatedDeal({
+          userId: negotiationScope.userId || "anonymous",
+          sessionId: negotiationScope.sessionId || "global",
+          planId: negotiationScope.planId || "global",
           sku: resolvedSku,
           title: resolvedTitle,
           originalPrice: Number(resolvedPrice ?? 0),
           negotiatedPrice: event.result.final_price,
-          planId: resolvedPlanId,
           planTitle: resolvedPlanTitle,
           acceptedAt: new Date().toISOString(),
         });
@@ -577,7 +624,16 @@ export default function NegotiationPage() {
         progressPercent: 100,
       });
     }
-  }, [persistNegotiationRun, resolvedPlanId, resolvedPlanTitle, resolvedPrice, resolvedSku, resolvedTitle]);
+  }, [
+    negotiationScope.planId,
+    negotiationScope.sessionId,
+    negotiationScope.userId,
+    persistNegotiationRun,
+    resolvedPlanTitle,
+    resolvedPrice,
+    resolvedSku,
+    resolvedTitle,
+  ]);
 
   const handleRunBuyerAgent = useCallback(async () => {
     const parsedTarget = Number(targetPrice);

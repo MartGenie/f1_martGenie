@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { clearAccessToken, fetchCurrentUser, readAccessToken } from "@/lib/auth";
+import { clearAccessToken, fetchCurrentUser, readAccessToken, readAuthUserId } from "@/lib/auth";
 import type { PlanOption } from "@/lib/chat-api";
 import type { ChatMessage, TimelineEvent } from "@/lib/chat-contract";
 import { readNegotiatedDeals, readNegotiationRuns } from "@/lib/negotiation-store";
@@ -157,13 +157,20 @@ export default function RecommendationsPage() {
       return null;
     }
   }, [workspaceSnapshot]);
+  const negotiationScope = useMemo(
+    () => ({
+      userId: readAuthUserId(),
+      sessionId: workspaceState?.sessionId ?? null,
+    }),
+    [workspaceState?.sessionId],
+  );
   const negotiatedDeals = useMemo(
-    () => (negotiatedDealsSnapshot ? readNegotiatedDeals() : {}),
-    [negotiatedDealsSnapshot],
+    () => (negotiatedDealsSnapshot ? readNegotiatedDeals(negotiationScope) : {}),
+    [negotiatedDealsSnapshot, negotiationScope],
   );
   const storedNegotiationRuns = useMemo(
-    () => (negotiationRunsSnapshot ? readNegotiationRuns() : {}),
-    [negotiationRunsSnapshot],
+    () => (negotiationRunsSnapshot ? readNegotiationRuns(negotiationScope) : {}),
+    [negotiationRunsSnapshot, negotiationScope],
   );
   const plans = useMemo(() => workspaceState?.plans ?? [], [workspaceState]);
   const packageSnapshots = useMemo(
@@ -458,7 +465,7 @@ export default function RecommendationsPage() {
                             </article>
                             <Link
                               className="group flex w-full items-center justify-between rounded-[18px] border border-[#cfe0f5] bg-[linear-gradient(135deg,#0f172a_0%,#172554_42%,#2563eb_100%)] px-4 py-2.5 text-white shadow-[0_16px_38px_rgba(37,99,235,0.24)] transition hover:scale-[1.01] hover:shadow-[0_20px_48px_rgba(37,99,235,0.3)]"
-                              href={`/negotiation?sku=${encodeURIComponent(item.sku)}&title=${encodeURIComponent(item.title)}&price=${encodeURIComponent(String(item.price))}&imageUrl=${encodeURIComponent(item.imageUrl ?? "")}&planId=${encodeURIComponent(activePlan.id)}&planTitle=${encodeURIComponent(activePlan.title)}`}
+                              href={`/negotiation?sku=${encodeURIComponent(item.sku)}&title=${encodeURIComponent(item.title)}&price=${encodeURIComponent(String(item.price))}&imageUrl=${encodeURIComponent(item.imageUrl ?? "")}&planId=${encodeURIComponent(activePlan.id)}&planTitle=${encodeURIComponent(activePlan.title)}&sessionId=${encodeURIComponent(workspaceState?.sessionId ?? "")}`}
                             >
                               <div className="min-w-0">
                                 <p className="text-sm font-semibold">Let the agent bargain</p>

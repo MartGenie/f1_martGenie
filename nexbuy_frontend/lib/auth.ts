@@ -27,6 +27,7 @@ export class AuthRequestError extends Error {
 
 const ACCESS_TOKEN_KEY = "nexbuy.access_token";
 const USER_EMAIL_KEY = "nexbuy.auth.user_email";
+const USER_ID_KEY = "nexbuy.auth.user_id";
 const OAUTH_RETURN_TO_KEY = "nexbuy.auth.return_to";
 const DEFAULT_API_BASE_URL = "/api";
 const DEFAULT_BACKEND_ORIGIN = "http://127.0.0.1:8000";
@@ -72,12 +73,29 @@ export function saveAuthUserEmail(email: string) {
   window.dispatchEvent(new Event(AUTH_STATE_CHANGE_EVENT));
 }
 
+export function saveAuthUserId(userId: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(USER_ID_KEY, userId);
+  window.dispatchEvent(new Event(AUTH_STATE_CHANGE_EVENT));
+}
+
 export function readAuthUserEmail() {
   if (typeof window === "undefined") {
     return "";
   }
 
   return window.localStorage.getItem(USER_EMAIL_KEY) ?? "";
+}
+
+export function readAuthUserId() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return window.localStorage.getItem(USER_ID_KEY) ?? "";
 }
 
 export function clearAccessToken() {
@@ -87,6 +105,7 @@ export function clearAccessToken() {
 
   window.localStorage.removeItem(ACCESS_TOKEN_KEY);
   window.localStorage.removeItem(USER_EMAIL_KEY);
+  window.localStorage.removeItem(USER_ID_KEY);
   window.dispatchEvent(new Event(AUTH_STATE_CHANGE_EVENT));
 }
 

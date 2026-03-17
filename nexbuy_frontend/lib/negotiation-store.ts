@@ -1,23 +1,34 @@
+"use client";
+
 import type { BuyerAgentRunResult, BuyerAgentTurn, NegotiationSession } from "@/lib/negotiation-api";
 
 const DEAL_STORAGE_KEY = "nexbuy.negotiation.results";
 const RUN_STORAGE_KEY = "nexbuy.negotiation.runs";
 
-export type NegotiatedDeal = {
+export type NegotiationScope = {
+  userId?: string | null;
+  sessionId?: string | null;
+  planId?: string | null;
+};
+
+type ScopedRecord = {
+  userId: string;
+  sessionId: string;
+  planId: string;
   sku: string;
+};
+
+export type NegotiatedDeal = ScopedRecord & {
   originalPrice: number;
   negotiatedPrice: number;
   title: string;
-  planId?: string;
   planTitle?: string;
   acceptedAt: string;
 };
 
-export type StoredNegotiationRun = {
-  sku: string;
+export type StoredNegotiationRun = ScopedRecord & {
   title: string;
   originalPrice: number;
-  planId?: string;
   planTitle?: string;
   targetPrice: number;
   maxAcceptablePrice: number;
@@ -32,6 +43,28 @@ export type StoredNegotiationRun = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object";
+}
+
+function normalizeScope(scope?: NegotiationScope): Omit<ScopedRecord, "sku"> {
+  return {
+    userId: scope?.userId?.trim() || "anonymous",
+    sessionId: scope?.sessionId?.trim() || "global",
+    planId: scope?.planId?.trim() || "global",
+  };
+}
+
+function buildScopedKey(scope: NegotiationScope | undefined, sku: string) {
+  const normalized = normalizeScope(scope);
+  return `${normalized.userId}::${normalized.sessionId}::${normalized.planId}::${sku}`;
+}
+
+function matchesScope<T extends ScopedRecord>(value: T, scope?: NegotiationScope) {
+  const normalized = normalizeScope(scope);
+  return (
+    value.userId === normalized.userId &&
+    value.sessionId === normalized.sessionId &&
+    value.planId === normalized.planId
+  );
 }
 
 function readStorageMap<T>(key: string): Record<string, T> {
@@ -56,34 +89,42 @@ function readStorageMap<T>(key: string): Record<string, T> {
   }
 }
 
-function writeStorageEntry<T extends { sku: string }>(key: string, value: T) {
+function writeStorageEntry<T extends ScopedRecord>(key: string, value: T) {
   if (typeof window === "undefined") {
     return;
   }
 
   const current = readStorageMap<T>(key);
-  current[value.sku] = value;
+  current[buildScopedKey(value, value.sku)] = value;
   window.localStorage.setItem(key, JSON.stringify(current));
 }
 
-export function readNegotiatedDeals(): Record<string, NegotiatedDeal> {
-  return readStorageMap<NegotiatedDeal>(DEAL_STORAGE_KEY);
+export function readNegotiatedDeals(scope?: NegotiationScope): Record<string, NegotiatedDeal> {
+  return Object.fromEntries(
+    Object.values(readStorageMap<NegotiatedDeal>(DEAL_STORAGE_KEY))
+      .filter((value) => matchesScope(value, scope))
+      .map((value) => [value.sku, value]),
+  );
 }
 
 export function writeNegotiatedDeal(deal: NegotiatedDeal) {
   writeStorageEntry(DEAL_STORAGE_KEY, deal);
 }
 
-export function readNegotiationRuns(): Record<string, StoredNegotiationRun> {
-  return readStorageMap<StoredNegotiationRun>(RUN_STORAGE_KEY);
+export function readNegotiationRuns(scope?: NegotiationScope): Record<string, StoredNegotiationRun> {
+  return Object.fromEntries(
+    Object.values(readStorageMap<StoredNegotiationRun>(RUN_STORAGE_KEY))
+      .filter((value) => matchesScope(value, scope))
+      .map((value) => [value.sku, value]),
+  );
 }
 
 export function writeNegotiationRun(run: StoredNegotiationRun) {
   writeStorageEntry(RUN_STORAGE_KEY, run);
 }
 
-export function getLatestNegotiationRun(): StoredNegotiationRun | null {
-  const runs = Object.values(readNegotiationRuns());
+export function getLatestNegotiationRun(scope?: NegotiationScope): StoredNegotiationRun | null {
+  const runs = Object.values(readNegotiationRuns(scope));
   if (runs.length === 0) {
     return null;
   }

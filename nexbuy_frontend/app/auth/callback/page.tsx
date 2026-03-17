@@ -7,6 +7,8 @@ import {
   fetchCurrentUser,
   readOAuthReturnTo,
   saveAccessToken,
+  saveAuthUserEmail,
+  saveAuthUserId,
 } from "@/lib/auth";
 
 function readHashParams() {
@@ -54,7 +56,11 @@ export default function AuthCallbackPage() {
 
       try {
         saveAccessToken(accessToken);
-        await fetchCurrentUser(accessToken);
+        const user = await fetchCurrentUser(accessToken);
+        saveAuthUserEmail(user.email);
+        if (user.id) {
+          saveAuthUserId(user.id);
+        }
         const target = buildReturnUrl();
         clearOAuthReturnTo();
         window.location.replace(target);
