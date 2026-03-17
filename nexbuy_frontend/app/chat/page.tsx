@@ -36,6 +36,12 @@ type SavedWorkspaceState = {
   status: string;
 };
 
+type DraftAttachment = {
+  id: string;
+  name: string;
+  sizeLabel: string;
+};
+
 const WORKSPACE_STORAGE_KEY = "nexbuy.chat.workspace";
 const CHAT_HISTORY_REFRESH_EVENT = "nexbuy.chat.history.updated";
 const LEGACY_AI_STATUS = "AI is analyzing your request...";
@@ -191,17 +197,26 @@ export default function ChatWorkspacePage() {
   const [isSavingOnboarding, setIsSavingOnboarding] = useState(false);
   const [bootstrapNonce, setBootstrapNonce] = useState(0);
   const [prompt, setPrompt] = useState("");
+  const [draftAttachments, setDraftAttachments] = useState<DraftAttachment[]>([]);
+  const [openAttachmentMenu, setOpenAttachmentMenu] = useState<"hero" | "composer" | null>(null);
   const [status, setStatus] = useState("Preparing workspace...");
   const [error, setError] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [runElapsedSec, setRunElapsedSec] = useState(0);
   const [streamText, setStreamText] = useState("");
   const streamTextRef = useRef("");
+  const heroTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const heroFileInputRef = useRef<HTMLInputElement | null>(null);
+  const composerFileInputRef = useRef<HTMLInputElement | null>(null);
+  const heroImageInputRef = useRef<HTMLInputElement | null>(null);
+  const composerImageInputRef = useRef<HTMLInputElement | null>(null);
   const plansRef = useRef<PlanOption[]>([]);
   const packageSnapshotIdRef = useRef<string | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const runStartRef = useRef<number | null>(null);
   const restoredWorkspaceRef = useRef(false);
+  const attachmentMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -314,6 +329,26 @@ export default function ChatWorkspacePage() {
   }, [isSending]);
 
   useEffect(() => {
+    if (!openAttachmentMenu) {
+      return;
+    }
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!attachmentMenuRef.current?.contains(event.target as Node)) {
+        setOpenAttachmentMenu(null);
+      }
+    }
+
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => window.removeEventListener("mousedown", handlePointerDown);
+  }, [openAttachmentMenu]);
+
+  useEffect(() => {
+    resizeComposer(heroTextareaRef.current);
+    resizeComposer(composerTextareaRef.current);
+  }, [prompt]);
+
+  useEffect(() => {
     if (!isWorkspaceHydrated) {
       return;
     }
@@ -394,6 +429,7 @@ export default function ChatWorkspacePage() {
     }
 
     setPrompt("");
+    setDraftAttachments([]);
     setError("");
     setIsSending(true);
     setStreamText("");
@@ -541,6 +577,69 @@ export default function ChatWorkspacePage() {
     ]);
   }
 
+  function resizeComposer(textarea: HTMLTextAreaElement | null) {
+    if (!textarea) {
+      return;
+    }
+
+    textarea.style.height = "0px";
+    const nextHeight = Math.min(textarea.scrollHeight, 240);
+    textarea.style.height = `${Math.max(nextHeight, 56)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > 240 ? "auto" : "hidden";
+  }
+
+  function handlePromptChange(value: string, textarea: HTMLTextAreaElement | null) {
+    setPrompt(value);
+    resizeComposer(textarea);
+  }
+
+  function openAttachmentPicker(which: "hero" | "composer", kind: "image" | "file") {
+    setOpenAttachmentMenu(null);
+
+    if (which === "hero") {
+      if (kind === "image") {
+        heroImageInputRef.current?.click();
+        return;
+      }
+      heroFileInputRef.current?.click();
+      return;
+    }
+
+    if (kind === "image") {
+      composerImageInputRef.current?.click();
+      return;
+    }
+    composerFileInputRef.current?.click();
+  }
+
+  function formatFileSize(size: number) {
+    if (size >= 1024 * 1024) {
+      return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+    }
+    if (size >= 1024) {
+      return `${Math.round(size / 1024)} KB`;
+    }
+    return `${size} B`;
+  }
+
+  function handleAttachmentChange(files: FileList | null) {
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    const nextFiles = Array.from(files).map((file) => ({
+      id: `file-${crypto.randomUUID()}`,
+      name: file.name,
+      sizeLabel: formatFileSize(file.size),
+    }));
+
+    setDraftAttachments((current) => [...current, ...nextFiles]);
+  }
+
+  function removeAttachment(attachmentId: string) {
+    setDraftAttachments((current) => current.filter((item) => item.id !== attachmentId));
+  }
+
   function setOnboardingMultiValue(questionKey: string, value: string, checked: boolean) {
     setOnboardingAnswers((current) => {
       const prev = current[questionKey];
@@ -612,6 +711,132 @@ export default function ChatWorkspacePage() {
   const hasConversation = renderedMessages.length > 0;
   function applyPromptSuggestion(value: string) {
     setPrompt(value);
+    window.requestAnimationFrame(() => {
+      resizeComposer(heroTextareaRef.current);
+      resizeComposer(composerTextareaRef.current);
+    });
+  }
+
+  function renderComposer(which: "hero" | "composer") {
+    const textareaRef = which === "hero" ? heroTextareaRef : composerTextareaRef;
+    const fileInputRef = which === "hero" ? heroFileInputRef : composerFileInputRef;
+    const placeholder =
+      which === "hero"
+        ? "Ask anything about the room, style, budget, and must-have pieces..."
+        : "Refine the brief, add another room, or ask for a different mix...";
+    const wrapperClass =
+      which === "hero"
+        ? "mt-8 w-full rounded-[32px] border border-[#d9e0ea] bg-white px-5 py-2 shadow-[0_18px_45px_rgba(148,163,184,0.12)]"
+        : "rounded-[30px] border border-[#d7dee8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-3 shadow-[0_12px_36px_rgba(148,163,184,0.12)]";
+    const textareaClass =
+      which === "hero"
+        ? "max-h-[220px] min-h-[28px] w-full resize-none border-none bg-transparent px-1 py-0 text-[15px] leading-7 text-[#111827] outline-none placeholder:text-[#98a2b3]"
+        : "max-h-[240px] min-h-[56px] w-full resize-none border-none bg-transparent px-1 py-1 text-[15px] leading-7 text-[#111827] outline-none placeholder:text-[#98a2b3]";
+    const toolbarClass =
+      which === "hero"
+        ? "mt-1.5 flex items-center justify-between gap-3"
+        : "mt-3 flex items-center justify-between gap-3";
+
+    return (
+      <div className={wrapperClass}>
+        <form onSubmit={handleSend}>
+          <input
+            className="hidden"
+            multiple
+            onChange={(event) => {
+              handleAttachmentChange(event.target.files);
+              event.currentTarget.value = "";
+            }}
+            ref={fileInputRef}
+            type="file"
+          />
+          <input
+            accept="image/*"
+            className="hidden"
+            multiple
+            onChange={(event) => {
+              handleAttachmentChange(event.target.files);
+              event.currentTarget.value = "";
+            }}
+            ref={which === "hero" ? heroImageInputRef : composerImageInputRef}
+            type="file"
+          />
+          <textarea
+            className={textareaClass}
+            disabled={!sessionId || isSending}
+            onChange={(event) => handlePromptChange(event.target.value, textareaRef.current)}
+            placeholder={placeholder}
+            ref={textareaRef}
+            rows={1}
+            value={prompt}
+          />
+
+          {draftAttachments.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {draftAttachments.map((attachment) => (
+                <span
+                  className="inline-flex items-center gap-2 rounded-full border border-[#d7dee8] bg-[#f8fafc] px-3 py-1 text-xs text-[#475467]"
+                  key={attachment.id}
+                >
+                  <span className="truncate">{attachment.name}</span>
+                  <span className="text-[#98a2b3]">{attachment.sizeLabel}</span>
+                  <button
+                    className="text-[#98a2b3] transition hover:text-[#111827]"
+                    onClick={() => removeAttachment(attachment.id)}
+                    type="button"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          <div className={toolbarClass}>
+            <div className="relative flex items-center gap-2" ref={openAttachmentMenu === which ? attachmentMenuRef : null}>
+              <button
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#d7dee8] bg-white text-xl text-[#344054] transition hover:border-[#bfd4ec] hover:bg-[#f7fbff]"
+                onClick={() => setOpenAttachmentMenu((current) => (current === which ? null : which))}
+                type="button"
+              >
+                +
+              </button>
+              {openAttachmentMenu === which ? (
+                <div className="absolute bottom-full left-0 z-20 mb-2 w-44 overflow-hidden rounded-2xl border border-[#d7dee8] bg-white shadow-[0_18px_40px_rgba(15,23,42,0.14)]">
+                  <button
+                    className="block w-full px-4 py-3 text-left text-sm font-medium text-[#344054] transition hover:bg-[#f8fbff]"
+                    onClick={() => openAttachmentPicker(which, "image")}
+                    type="button"
+                  >
+                    Add image
+                  </button>
+                  <button
+                    className="block w-full border-t border-[#eef2f6] px-4 py-3 text-left text-sm font-medium text-[#344054] transition hover:bg-[#f8fbff]"
+                    onClick={() => openAttachmentPicker(which, "file")}
+                    type="button"
+                  >
+                    Add file
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
+            <button
+              className={`inline-flex h-11 w-11 items-center justify-center rounded-full text-lg text-white shadow-[0_16px_36px_rgba(15,23,42,0.18)] transition ${
+                isSending
+                  ? "bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] hover:brightness-105"
+                  : "bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#b7c8d8] disabled:text-slate-200"
+              }`}
+              disabled={!isSending && (!sessionId || (!prompt.trim() && draftAttachments.length === 0))}
+              onClick={isSending ? handleCancel : undefined}
+              type={isSending ? "button" : "submit"}
+            >
+              {isSending ? <span className="h-3.5 w-3.5 rounded-[3px] bg-white" /> : "↑"}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
   }
 
   function handleNewConversation() {
@@ -667,34 +892,7 @@ export default function ChatWorkspacePage() {
                     Include the room, style, budget, and must-have pieces. The agent will search products and build packages while the log runs on the right.
                   </p>
 
-                  <div className="mt-8 w-full rounded-[28px] border border-[#e2e8f0] bg-white p-4">
-                    <form onSubmit={handleSend}>
-                      <div className="relative">
-                        <textarea
-                          className="min-h-[56px] w-full resize-none border-none bg-transparent px-1 py-1 pr-28 text-[15px] leading-7 text-[#111827] outline-none placeholder:text-[#98a2b3]"
-                          disabled={!sessionId || isSending}
-                          onChange={(event) => setPrompt(event.target.value)}
-                          placeholder="Describe your room, style, budget, and must-have pieces..."
-                          rows={2}
-                          value={prompt}
-                        />
-                        <div className="absolute bottom-0 right-0">
-                          <button
-                            className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl text-lg text-white shadow-[0_16px_36px_rgba(15,23,42,0.16)] transition ${
-                              isSending
-                                ? "bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] hover:brightness-105"
-                                : "bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#b7c8d8] disabled:text-slate-200"
-                            }`}
-                            disabled={!isSending && (!sessionId || !prompt.trim())}
-                            onClick={isSending ? handleCancel : undefined}
-                            type={isSending ? "button" : "submit"}
-                          >
-                            {isSending ? <span className="h-3.5 w-3.5 rounded-[3px] bg-white" /> : "↑"}
-                          </button>
-                        </div>
-                      </div>
-                    </form>
-                  </div>
+                  {renderComposer("hero")}
 
                   <div className="mt-5 flex max-w-[760px] flex-wrap justify-center gap-2">
                     {STARTER_PROMPTS.map((suggestion) => (
@@ -770,33 +968,10 @@ export default function ChatWorkspacePage() {
             </div>
 
             {hasConversation ? (
-              <form className="border-t border-[#e2e8f0] px-5 py-4 md:px-6" onSubmit={handleSend}>
-                <div className="relative">
-                  <textarea
-                    className="min-h-[54px] w-full resize-none rounded-[24px] border border-[#d7dee8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-3 pr-28 text-sm text-[#101828] outline-none transition placeholder:text-[#98a2b3] focus:border-[#93c5fd] focus:shadow-[0_0_0_4px_rgba(147,197,253,0.18)]"
-                    disabled={!sessionId || isSending}
-                    onChange={(event) => setPrompt(event.target.value)}
-                    placeholder="Refine the brief, add another room, or ask for a different mix..."
-                    rows={2}
-                    value={prompt}
-                  />
-                  <div className="absolute bottom-1.5 right-1.5">
-                    <button
-                      className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl text-lg text-white shadow-[0_16px_36px_rgba(15,23,42,0.18)] transition ${
-                        isSending
-                          ? "bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] hover:brightness-105"
-                          : "bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#b7c8d8] disabled:text-slate-200"
-                      }`}
-                      disabled={!isSending && (!sessionId || !prompt.trim())}
-                      onClick={isSending ? handleCancel : undefined}
-                      type={isSending ? "button" : "submit"}
-                    >
-                      {isSending ? <span className="h-3.5 w-3.5 rounded-[3px] bg-white" /> : "↑"}
-                    </button>
-                  </div>
-                </div>
+              <div className="border-t border-[#e2e8f0] px-5 py-4 md:px-6">
+                {renderComposer("composer")}
                 {error ? <p className="mt-2 text-sm text-[#be123c]">{error}</p> : null}
-              </form>
+              </div>
             ) : error ? (
               <div className="border-t border-[#e2e8f0] px-5 py-4 md:px-6">
                 <p className="text-sm text-[#be123c]">{error}</p>
