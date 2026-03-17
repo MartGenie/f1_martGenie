@@ -22,8 +22,6 @@ type SavedWorkspaceState = {
 };
 
 const WORKSPACE_STORAGE_KEY = "nexbuy.chat.workspace";
-const PACKAGE_FIT_SCORES = [86, 83, 80];
-
 function readSavedWorkspace(): SavedWorkspaceState | null {
   if (typeof window === "undefined") {
     return null;
@@ -216,10 +214,10 @@ export default function RecommendationsPage() {
                   Packages
                 </p>
                 <h1 className="mt-3 text-4xl font-black tracking-[-0.05em] text-[#101828]">
-                  Packages from your latest chat session.
+                  Curated packages for your request.
                 </h1>
                 <p className="mt-3 max-w-3xl text-base leading-7 text-[#667085]">
-                  Review the packages MartGennie assembled, inspect item-level reasoning, and jump into negotiation when you want to push pricing further.
+                  Explore the bundles MartGennie assembled, compare the items inside each set, and move into negotiation when you want a better price.
                 </p>
               </div>
             </div>
@@ -236,7 +234,7 @@ export default function RecommendationsPage() {
             ) : (
               <div className="mt-8 grid gap-6 xl:grid-cols-[1fr_1.15fr]">
                 <div className="space-y-4">
-                  {displayedPlans.map((plan, index) => {
+                  {displayedPlans.map((plan) => {
                     const isActive = activePlan?.id === plan.id;
                     return (
                       <button
@@ -258,9 +256,6 @@ export default function RecommendationsPage() {
                               {plan.title}
                             </h2>
                           </div>
-                          <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-[#1d4ed8]">
-                            {(PACKAGE_FIT_SCORES[index] ?? Math.round(plan.confidence * 100))}% fit
-                          </span>
                         </div>
                         <p className="mt-3 text-sm font-medium leading-7 text-[#344054]">
                           {plan.explanation || plan.summary}
