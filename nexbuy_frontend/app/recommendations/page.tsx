@@ -129,6 +129,7 @@ export default function RecommendationsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedSnapshotId = searchParams.get("snapshot");
+  const requestedPlanId = searchParams.get("plan");
   const [authOpen, setAuthOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const workspaceSnapshot = useSyncExternalStore(
@@ -179,11 +180,12 @@ export default function RecommendationsPage() {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const defaultActivePlanId = useMemo(
     () =>
+      requestedPlanId ??
       (requestedSnapshotId && workspaceState?.packageSnapshots?.[requestedSnapshotId]?.[0]?.id) ??
       workspaceState?.activePlanId ??
       workspaceState?.plans?.[0]?.id ??
       null,
-    [requestedSnapshotId, workspaceState],
+    [requestedPlanId, requestedSnapshotId, workspaceState],
   );
   const activePlanId = selectedPlanId ?? defaultActivePlanId;
 
@@ -217,7 +219,12 @@ export default function RecommendationsPage() {
         ...plan,
         items: plan.items.map((item) => {
           const deal = negotiatedDeals[item.sku];
-          return deal ? { ...item, price: deal.negotiatedPrice } : item;
+          return {
+            ...item,
+            price: deal ? deal.negotiatedPrice : item.price,
+            originalPrice: item.price,
+            negotiatedSavings: deal ? Math.max(0, item.price - deal.negotiatedPrice) : 0,
+          };
         }),
       })),
     [negotiatedDeals, selectedPlans],
@@ -232,6 +239,10 @@ export default function RecommendationsPage() {
     }
 
     const subtotal = activePlan.items.reduce((sum, item) => sum + item.price, 0);
+    const negotiatedSavings = activePlan.items.reduce(
+      (sum, item) => sum + (typeof item.negotiatedSavings === "number" ? item.negotiatedSavings : 0),
+      0,
+    );
     setOrderCheckout({
       source: "package",
       packageId: activePlan.id,
@@ -245,7 +256,7 @@ export default function RecommendationsPage() {
           imageUrl: item.imageUrl ?? null,
         })),
       subtotal,
-      negotiatedSavings: 0,
+      negotiatedSavings,
     });
     router.push("/order");
   }
@@ -292,6 +303,10 @@ export default function RecommendationsPage() {
                 <div className="space-y-4">
                   {displayedPlans.map((plan) => {
                     const isActive = activePlan?.id === plan.id;
+                    const planSavings = plan.items.reduce(
+                      (sum, item) => sum + (typeof item.negotiatedSavings === "number" ? item.negotiatedSavings : 0),
+                      0,
+                    );
                     return (
                       <button
                         className={`w-full rounded-[28px] border p-5 text-left transition ${
@@ -319,6 +334,11 @@ export default function RecommendationsPage() {
                         <p className="mt-4 text-3xl font-black text-[#101828]">
                           ${plan.totalPrice.toLocaleString()}
                         </p>
+                        {planSavings > 0 ? (
+                          <p className="mt-2 text-sm font-semibold text-emerald-600">
+                            Negotiated savings: ${planSavings.toLocaleString()}
+                          </p>
+                        ) : null}
                       </button>
                     );
                   })}
@@ -364,9 +384,23 @@ export default function RecommendationsPage() {
                               <h3 className="mt-4 text-lg font-bold text-[#101828]">{item.title}</h3>
                               <p className="mt-2 text-sm leading-6 text-[#667085]">{item.reason}</p>
                               <div className="mt-5 border-t border-[#e8edf4] pt-4">
-                                <p className="text-2xl font-black text-[#101828]">
-                                  ${item.price.toLocaleString()}
-                                </p>
+                                {item.negotiatedSavings > 0 ? (
+                                  <div className="space-y-1">
+                                    <p className="text-[13px] font-medium text-[#98a2b3] line-through">
+                                      ${item.originalPrice.toLocaleString()}
+                                    </p>
+                                    <p className="text-2xl font-black text-[#101828]">
+                                      ${item.price.toLocaleString()}
+                                    </p>
+                                    <p className="text-sm font-semibold text-emerald-600">
+                                      Saved ${item.negotiatedSavings.toLocaleString()}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <p className="text-2xl font-black text-[#101828]">
+                                    ${item.price.toLocaleString()}
+                                  </p>
+                                )}
                               </div>
                               {(item.description || item.categoryLabel || getSpecEntries(item.specs).length > 0) ? (
                                 <div className="pointer-events-none absolute left-[calc(100%+16px)] top-0 z-20 hidden w-[320px] rounded-[24px] border border-[#dbe5f0] bg-[linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] p-4 shadow-[0_20px_48px_rgba(15,23,42,0.14)] transition duration-200 group-hover:block xl:block xl:opacity-0 xl:group-hover:opacity-100">

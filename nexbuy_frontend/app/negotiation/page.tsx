@@ -16,7 +16,6 @@ import {
   type NegotiationTurn,
 } from "@/lib/negotiation-api";
 import { readNegotiationRuns, writeNegotiatedDeal, writeNegotiationRun } from "@/lib/negotiation-store";
-import { setOrderCheckout } from "@/lib/order-store";
 import AuthModal from "@/src/components/AuthModal";
 import WorkspaceShell from "@/src/components/WorkspaceShell";
 
@@ -148,11 +147,6 @@ export default function NegotiationPage() {
       : session?.closed && typeof session.accepted_price === "number"
         ? session.accepted_price
         : null;
-  const originalPrice = Number(price ?? 0);
-  const negotiatedSavings =
-    acceptedPrice && Number.isFinite(originalPrice) && originalPrice > acceptedPrice
-      ? originalPrice - acceptedPrice
-      : 0;
   const acceptedSellerMessageId =
     acceptedPrice != null
       ? [...messages].reverse().find((message) => message.role === "seller" && !message.pending)?.id ?? null
@@ -658,28 +652,14 @@ export default function NegotiationPage() {
     });
   }
 
-  function handleProceedToOrder() {
+  function handleViewUpdatedPackage() {
     if (!sku || acceptedPrice == null) {
       return;
     }
-
-    setOrderCheckout({
-      source: "negotiation",
-      packageId: planId,
-      packageTitle: title,
-      summary: `Finalized from ${planTitle} after negotiation.`,
-      items: [
-        {
-          sku,
-          title,
-          price: acceptedPrice,
-          quantity: 1,
-        },
-      ],
-      subtotal: acceptedPrice,
-      negotiatedSavings,
-    });
-    router.push("/order");
+    const nextHref = planId
+      ? `/recommendations?plan=${encodeURIComponent(planId)}`
+      : "/recommendations";
+    router.push(nextHref);
   }
 
   return (
@@ -767,10 +747,10 @@ export default function NegotiationPage() {
                       {message.id === acceptedSellerMessageId ? (
                         <button
                           className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-5 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.16)] transition hover:brightness-105"
-                          onClick={handleProceedToOrder}
+                          onClick={handleViewUpdatedPackage}
                           type="button"
                         >
-                          Place order
+                          View updated package
                         </button>
                       ) : null}
                     </article>
