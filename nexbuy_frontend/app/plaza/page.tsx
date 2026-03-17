@@ -213,9 +213,11 @@ export default function PlazaPage() {
     [],
   );
 
-function renderRecommendationCard(product: PlazaRecommendationProduct) {
+function renderRecommendationCard(product: PlazaRecommendationProduct, index: number) {
     const categoryLabel = buildRecommendationCategoryLabel(product);
     const specEntries = getSpecEntries(product.specs);
+    const hoverPanelPositionClass =
+      index % 4 === 3 ? "right-[calc(100%+16px)]" : "left-[calc(100%+16px)]";
     return (
       <article
         className="group relative z-0 flex h-full flex-col overflow-visible rounded-[28px] border border-[#dbe5f0] bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(244,248,252,0.96)_100%)] shadow-[0_18px_45px_rgba(148,163,184,0.14)] transition duration-300 hover:z-30 hover:-translate-y-1 hover:border-[#bfd3ea] hover:shadow-[0_24px_55px_rgba(96,165,250,0.16)]"
@@ -239,7 +241,7 @@ function renderRecommendationCard(product: PlazaRecommendationProduct) {
             {formatMoney(product.sale_price ?? 0)}
           </p>
         </div>
-        <div className="pointer-events-none absolute left-[calc(100%+16px)] top-0 z-40 hidden w-[320px] -translate-y-[84px] rounded-[24px] border border-[#dbe5ef] bg-[linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] p-4 shadow-[0_20px_48px_rgba(15,23,42,0.14)] xl:group-hover:block">
+        <div className={`pointer-events-none absolute top-0 z-40 hidden w-[320px] -translate-y-[84px] rounded-[24px] border border-[#dbe5ef] bg-[linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] p-4 shadow-[0_20px_48px_rgba(15,23,42,0.14)] xl:group-hover:block ${hoverPanelPositionClass}`}>
           <div className="flex items-start gap-3">
             {product.main_image_url ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -381,7 +383,7 @@ function renderRecommendationCard(product: PlazaRecommendationProduct) {
                         <h3 className="text-2xl font-black tracking-[-0.04em] text-[#0f172a]">{group.label}</h3>
                       </div>
                       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                        {group.products.map((product) => renderRecommendationCard(product))}
+                        {group.products.map((product, index) => renderRecommendationCard(product, index))}
                       </div>
                     </section>
                   ))}
