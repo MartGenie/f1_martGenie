@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     access_token_lifetime_seconds: int = 3600
     frontend_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     google_oauth_frontend_redirect_url: str = "http://localhost:3000/auth/callback"
+    google_oauth_redirect_uri: str = "http://localhost:3000/api/auth/google/callback"
     google_oauth_client_id: str = ""
     google_oauth_client_secret: str = ""
     apple_oauth_frontend_redirect_url: str = "http://localhost:3000/auth/callback"

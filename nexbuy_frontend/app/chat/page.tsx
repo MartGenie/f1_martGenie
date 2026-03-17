@@ -417,7 +417,7 @@ export default function ChatWorkspacePage() {
       const token = readAccessToken();
       if (!token) {
         setStatus("Sign in to start your shopping workspace.");
-        setError("You need to sign in before using chat.");
+        setError("Sign in to start the conversation.");
         return;
       }
 

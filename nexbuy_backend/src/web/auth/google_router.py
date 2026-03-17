@@ -27,7 +27,7 @@ router = APIRouter()
 callback_route_name = "google-oauth-callback"
 oauth2_authorize_callback = OAuth2AuthorizeCallback(
     google_oauth_client,
-    route_name=callback_route_name,
+    redirect_url=settings.google_oauth_redirect_uri,
 )
 
 
@@ -44,8 +44,9 @@ def _error_value(error: ErrorCode | str) -> str:
 async def google_authorize(request: Request, response: Response) -> dict[str, str]:
     csrf_token = generate_csrf_token()
     state = generate_state_token({CSRF_TOKEN_KEY: csrf_token}, settings.oauth_state_secret)
+    redirect_uri = settings.google_oauth_redirect_uri or str(request.url_for(callback_route_name))
     authorization_url = await google_oauth_client.get_authorization_url(
-        str(request.url_for(callback_route_name)),
+        redirect_uri,
         state,
         ["openid", "email", "profile"],
         extras_params={"prompt": "consent select_account"},
@@ -121,6 +122,14 @@ async def google_callback(
         error = ErrorCode.OAUTH_USER_ALREADY_EXISTS
     except ValueError as exc:
         error = exc.args[0]
+    except Exception as exc:
+        response = getattr(exc, "response", None)
+        if response is not None:
+            print("Google OAuth callback error status:", response.status_code)
+            print("Google OAuth callback error body:", response.text)
+        else:
+            print("Google OAuth callback unexpected error:", repr(exc))
+        error = ErrorCode.OAUTH_CALLBACK_ERROR
 
     redirect = RedirectResponse(
         url=_build_frontend_redirect(error=_error_value(error)),

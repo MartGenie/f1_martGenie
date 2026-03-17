@@ -143,7 +143,7 @@ export async function fetchCurrentUser(token: string) {
 }
 
 export async function requestGoogleAuthorization() {
-  const response = await fetch(`${getBackendOrigin()}/api/auth/google/authorize`, {
+  const response = await fetch(`${getApiBaseUrl()}/auth/google/authorize`, {
     credentials: "include",
   });
   const data = await parseJsonResponse<OAuthAuthorizeResponse>(
@@ -159,7 +159,7 @@ export async function requestGoogleAuthorization() {
 }
 
 export async function requestAppleAuthorization() {
-  const response = await fetch(`${getBackendOrigin()}/api/auth/apple/authorize`, {
+  const response = await fetch(`${getApiBaseUrl()}/auth/apple/authorize`, {
     credentials: "include",
   });
   const data = await parseJsonResponse<OAuthAuthorizeResponse>(
