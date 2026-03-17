@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.sell_agent.schema import (
@@ -17,6 +19,7 @@ from src.web.auth.models import User
 
 
 router = APIRouter(prefix="/negotiation", tags=["sell_agent"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/sessions", response_model=NegotiationSession)
@@ -30,6 +33,13 @@ async def create_session(payload: NegotiationCreateIn, user: User = Depends(Curr
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception(
+            "negotiation.create_session_failed user_id=%s sku=%s",
+            str(user.id),
+            payload.sku_id_default,
+        )
+        raise HTTPException(status_code=500, detail=f"Could not create negotiation session: {exc}") from exc
 
 
 @router.get("/sessions/{session_id}", response_model=NegotiationSession)

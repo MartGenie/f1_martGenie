@@ -238,34 +238,41 @@ async def create_negotiation_session(
         pricing_params=pricing_params,
     )
     if buyer_note:
-        intent = await parse_buyer_intent(buyer_note)
-        opening_offer = intent.detected_offer
-        if opening_offer is None:
-            opening_offer = parse_offer_from_message(buyer_note)
+        intent = None
+        opening_offer = parse_offer_from_message(buyer_note)
         opening = seller_decide(session, opening_offer)
-        opening = await _apply_llm_price_with_guard(
-            session=session,
-            turn=opening,
-            buyer_message=buyer_note,
-            buyer_intent=intent,
-        )
-        opening.seller_message = _build_human_fallback_message(session, opening)
-        opening.seller_message = await generate_seller_reply(
-            decision=opening.seller_decision,
-            counter_price=opening.seller_counter_price,
-            current_target_price=opening.current_target_price,
-            min_expected_price=opening.min_expected_price,
-            product_title=session.product.title,
-            list_price=float(session.product.sale_price or 0),
-            inventory=int(session.product.mock_inventory or 0),
-            urgency_status=str(session.product.mock_urgency_status or "NORMAL"),
-            round_index=opening.round_index,
-            max_rounds=session.max_rounds,
-            reason_summary=_build_reason_summary(session, opening),
-            buyer_message=buyer_note,
-            buyer_intent=intent,
-            fallback_message=opening.seller_message,
-        )
+        try:
+            intent = await parse_buyer_intent(buyer_note)
+            if intent.detected_offer is not None:
+                opening = seller_decide(session, intent.detected_offer)
+            opening = await _apply_llm_price_with_guard(
+                session=session,
+                turn=opening,
+                buyer_message=buyer_note,
+                buyer_intent=intent,
+            )
+            opening.seller_message = _build_human_fallback_message(session, opening)
+            opening.seller_message = await generate_seller_reply(
+                decision=opening.seller_decision,
+                counter_price=opening.seller_counter_price,
+                current_target_price=opening.current_target_price,
+                min_expected_price=opening.min_expected_price,
+                product_title=session.product.title,
+                list_price=float(session.product.sale_price or 0),
+                inventory=int(session.product.mock_inventory or 0),
+                urgency_status=str(session.product.mock_urgency_status or "NORMAL"),
+                round_index=opening.round_index,
+                max_rounds=session.max_rounds,
+                reason_summary=_build_reason_summary(session, opening),
+                buyer_message=buyer_note,
+                buyer_intent=intent,
+                fallback_message=opening.seller_message,
+            )
+        except Exception as exc:
+            opening.llm_price_verified = False
+            opening.llm_verification_note = f"Opening LLM flow failed: {exc}"
+            opening.seller_message = _build_human_fallback_message(session, opening)
+
         if opening.seller_decision == "accept" and opening.seller_counter_price is not None:
             verified = opening.seller_counter_price >= opening.min_expected_price
             if verified:

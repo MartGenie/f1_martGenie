@@ -560,7 +560,7 @@ export default function NegotiationPage() {
     setThinkingStartedAt(null);
     setStatus("Buyer agent negotiation cancelled.");
     setError("");
-    router.push("/recommendations");
+    activeRunIdRef.current = null;
   }
 
   function handleProceedToOrder() {
