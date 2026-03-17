@@ -583,9 +583,11 @@ export default function ChatWorkspacePage() {
     }
 
     textarea.style.height = "0px";
-    const nextHeight = Math.min(textarea.scrollHeight, 240);
-    textarea.style.height = `${Math.max(nextHeight, 56)}px`;
-    textarea.style.overflowY = textarea.scrollHeight > 240 ? "auto" : "hidden";
+    const maxHeight = textarea.dataset.variant === "hero" ? 180 : 220;
+    const minHeight = textarea.dataset.variant === "hero" ? 24 : 40;
+    const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
+    textarea.style.height = `${Math.max(nextHeight, minHeight)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
   }
 
   function handlePromptChange(value: string, textarea: HTMLTextAreaElement | null) {
@@ -726,16 +728,16 @@ export default function ChatWorkspacePage() {
         : "Refine the brief, add another room, or ask for a different mix...";
     const wrapperClass =
       which === "hero"
-        ? "mt-8 w-full rounded-[32px] border border-[#d9e0ea] bg-white px-5 py-2 shadow-[0_18px_45px_rgba(148,163,184,0.12)]"
-        : "rounded-[30px] border border-[#d7dee8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-3 shadow-[0_12px_36px_rgba(148,163,184,0.12)]";
+        ? "mt-8 w-full rounded-[32px] border border-[#d9e0ea] bg-white px-5 py-1.5 shadow-[0_18px_45px_rgba(148,163,184,0.12)]"
+        : "mx-auto w-full max-w-[760px] rounded-[28px] border border-[#d7dee8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-2 shadow-[0_12px_36px_rgba(148,163,184,0.12)]";
     const textareaClass =
       which === "hero"
-        ? "max-h-[220px] min-h-[28px] w-full resize-none border-none bg-transparent px-1 py-0 text-[15px] leading-7 text-[#111827] outline-none placeholder:text-[#98a2b3]"
-        : "max-h-[240px] min-h-[56px] w-full resize-none border-none bg-transparent px-1 py-1 text-[15px] leading-7 text-[#111827] outline-none placeholder:text-[#98a2b3]";
+        ? "max-h-[180px] min-h-[24px] w-full resize-none border-none bg-transparent px-1 py-0 text-[15px] leading-6 text-[#111827] outline-none placeholder:text-[#98a2b3]"
+        : "max-h-[220px] min-h-[40px] w-full resize-none border-none bg-transparent px-1 py-0.5 text-[15px] leading-6 text-[#111827] outline-none placeholder:text-[#98a2b3]";
     const toolbarClass =
       which === "hero"
-        ? "mt-1.5 flex items-center justify-between gap-3"
-        : "mt-3 flex items-center justify-between gap-3";
+        ? "mt-1 flex items-center justify-between gap-3"
+        : "mt-2 flex items-center justify-between gap-3";
 
     return (
       <div className={wrapperClass}>
@@ -763,11 +765,13 @@ export default function ChatWorkspacePage() {
           />
           <textarea
             className={textareaClass}
+            data-variant={which}
             disabled={!sessionId || isSending}
             onChange={(event) => handlePromptChange(event.target.value, textareaRef.current)}
             placeholder={placeholder}
             ref={textareaRef}
             rows={1}
+            style={{ fontFamily: "'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif" }}
             value={prompt}
           />
 
@@ -877,7 +881,7 @@ export default function ChatWorkspacePage() {
         <section className="flex min-h-0 flex-col border-b border-[#e2e8f0] lg:border-b-0 lg:border-r">
             <div
               className={`flex-1 overflow-y-auto px-5 py-5 md:px-6 ${
-                hasConversation ? "space-y-3" : "flex flex-col items-center justify-center"
+                hasConversation ? "space-y-6" : "flex flex-col items-center justify-center"
               }`}
             >
               {!hasConversation ? (
@@ -933,25 +937,31 @@ export default function ChatWorkspacePage() {
               ) : (
                 renderedMessages.map((message) => (
                   <article
-                    className={`max-w-[82%] rounded-[24px] px-4 py-3 text-sm leading-7 md:text-[15px] ${
+                    className={`mx-auto w-full max-w-[760px] text-sm leading-8 text-[#111827] md:text-[15px] ${
                       message.role === "user"
-                        ? "ml-auto border border-[#d6e4f5] bg-[linear-gradient(180deg,#eff6ff_0%,#dbeafe_100%)] text-[#123b5f] shadow-[0_10px_24px_rgba(59,130,246,0.08)]"
-                        : "mr-auto border border-[#e2e8f0] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] text-[#344054] shadow-[0_10px_24px_rgba(148,163,184,0.08)]"
+                        ? "flex justify-end"
+                        : "block"
                     }`}
                     key={message.id}
+                    style={{ fontFamily: "'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif" }}
                   >
-                    <p className="mb-1 text-[10px] uppercase tracking-[0.18em] text-[#98a2b3]">
-                      {message.role === "user" ? "You" : "Agent"}
-                    </p>
-                    <p>
-                      {message.content}
-                      {message.id === "assistant-draft" && isSending ? (
-                        <span className="ml-2 text-xs text-[#98a2b3]">({runElapsedSec}s)</span>
-                      ) : null}
-                    </p>
+                    {message.role === "user" ? (
+                      <div className="max-w-[72%] rounded-[22px] bg-[#f1f1f1] px-4 py-3 text-[#111827]">
+                        <p>{message.content}</p>
+                      </div>
+                    ) : (
+                      <div className="max-w-none text-[#1f2937]">
+                        <p>
+                          {message.content}
+                          {message.id === "assistant-draft" && isSending ? (
+                            <span className="ml-2 text-xs text-[#98a2b3]">({runElapsedSec}s)</span>
+                          ) : null}
+                        </p>
+                      </div>
+                    )}
                     {message.role === "assistant" && message.packageSnapshotId ? (
                       <button
-                        className="mt-3 inline-flex items-center rounded-full border border-[#d6e4f5] bg-white px-3 py-1.5 text-xs font-semibold text-[#1f4f78] transition hover:border-[#bfd4ec] hover:bg-[#eef6ff]"
+                        className="mt-4 inline-flex items-center rounded-full border border-[#d6e4f5] bg-white px-3 py-1.5 text-xs font-semibold text-[#1f4f78] transition hover:border-[#bfd4ec] hover:bg-[#eef6ff]"
                         onClick={() =>
                           router.push(
                             `/recommendations?snapshot=${encodeURIComponent(message.packageSnapshotId as string)}`,
@@ -968,7 +978,7 @@ export default function ChatWorkspacePage() {
             </div>
 
             {hasConversation ? (
-              <div className="border-t border-[#e2e8f0] px-5 py-4 md:px-6">
+              <div className="px-5 py-4 md:px-6">
                 {renderComposer("composer")}
                 {error ? <p className="mt-2 text-sm text-[#be123c]">{error}</p> : null}
               </div>
