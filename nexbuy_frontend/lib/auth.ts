@@ -26,13 +26,22 @@ export class AuthRequestError extends Error {
 }
 
 const ACCESS_TOKEN_KEY = "nexbuy.access_token";
+const OAUTH_RETURN_TO_KEY = "nexbuy.auth.return_to";
 const DEFAULT_API_BASE_URL = "/api";
+const DEFAULT_BACKEND_ORIGIN = "http://127.0.0.1:8000";
 
 export function getApiBaseUrl() {
   const configuredBaseUrl =
     process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
 
   return configuredBaseUrl.replace(/\/+$/, "");
+}
+
+export function getBackendOrigin() {
+  const configuredOrigin =
+    process.env.NEXT_PUBLIC_BACKEND_ORIGIN ?? DEFAULT_BACKEND_ORIGIN;
+
+  return configuredOrigin.replace(/\/+$/, "");
 }
 
 export function saveAccessToken(token: string) {
@@ -57,6 +66,30 @@ export function clearAccessToken() {
   }
 
   window.localStorage.removeItem(ACCESS_TOKEN_KEY);
+}
+
+export function saveOAuthReturnTo(path: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.sessionStorage.setItem(OAUTH_RETURN_TO_KEY, path);
+}
+
+export function readOAuthReturnTo() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.sessionStorage.getItem(OAUTH_RETURN_TO_KEY);
+}
+
+export function clearOAuthReturnTo() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.sessionStorage.removeItem(OAUTH_RETURN_TO_KEY);
 }
 
 export async function registerWithEmail(email: string, password: string) {
@@ -110,7 +143,7 @@ export async function fetchCurrentUser(token: string) {
 }
 
 export async function requestGoogleAuthorization() {
-  const response = await fetch(`${getApiBaseUrl()}/auth/google/authorize`, {
+  const response = await fetch(`${getBackendOrigin()}/api/auth/google/authorize`, {
     credentials: "include",
   });
   const data = await parseJsonResponse<OAuthAuthorizeResponse>(
@@ -126,7 +159,7 @@ export async function requestGoogleAuthorization() {
 }
 
 export async function requestAppleAuthorization() {
-  const response = await fetch(`${getApiBaseUrl()}/auth/apple/authorize`, {
+  const response = await fetch(`${getBackendOrigin()}/api/auth/apple/authorize`, {
     credentials: "include",
   });
   const data = await parseJsonResponse<OAuthAuthorizeResponse>(

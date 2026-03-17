@@ -6,6 +6,7 @@ import {
   loginWithEmail,
   registerWithEmail,
   requestGoogleAuthorization,
+  saveOAuthReturnTo,
   saveAccessToken,
 } from "@/lib/auth";
 
@@ -65,6 +66,7 @@ export default function AuthForm({ onSuccess }: Props) {
     setError("");
     setMessage("");
     try {
+      saveOAuthReturnTo(`${window.location.pathname}${window.location.search}`);
       const authorizationUrl = await requestGoogleAuthorization();
       window.location.href = authorizationUrl;
     } catch (e) {

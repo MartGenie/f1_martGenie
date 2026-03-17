@@ -38,7 +38,6 @@ const NAV_ITEMS = [
   { label: "Negotiation", href: "/negotiation" },
   { label: "Plaza", href: "/plaza" },
   { label: "Seller", href: "/seller-console" },
-  { label: "Home", href: "/" },
 ];
 
 export default function WorkspaceShell({
@@ -156,7 +155,7 @@ export default function WorkspaceShell({
         <div className="h-full overflow-hidden border border-[#dbe3ed] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
           <aside className="flex min-h-0 flex-col border-b border-[#e2e8f0] bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfe_100%)] lg:border-b-0 lg:border-r">
             <div className="border-b border-[#e2e8f0] px-4 py-4">
-              <Link className="block" href="/">
+              <Link className="block" href="/chat">
                 <p
                   className="text-[1.55rem] font-normal tracking-[-0.04em] text-[#0f172a] md:text-[1.7rem]"
                   style={{ fontFamily: "Georgia, Cambria, 'Times New Roman', Times, serif" }}
@@ -230,6 +229,21 @@ export default function WorkspaceShell({
             </div>
 
             <div className="border-t border-[#e2e8f0] px-4 py-4">
+              <div className="mb-4 space-y-1">
+                <span className="block px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#98a2b3]">
+                  About
+                </span>
+                <Link
+                  className={`block rounded-[16px] px-3 py-2 text-sm font-medium transition ${
+                    currentPath === "/about"
+                      ? "bg-[#edf5ff] text-[#123b5f]"
+                      : "text-[#526173] hover:bg-[#f4f7fb] hover:text-[#101828]"
+                  }`}
+                  href="/about"
+                >
+                  About MartGennie
+                </Link>
+              </div>
               {isAuthenticated ? (
                 <div className="relative" ref={accountMenuRef}>
                   <button
