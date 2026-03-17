@@ -215,9 +215,8 @@ export default function RecommendationsPage() {
 
   const displayedPlans = useMemo(
     () =>
-      selectedPlans.map((plan) => ({
-        ...plan,
-        items: plan.items.map((item) => {
+      selectedPlans.map((plan) => {
+        const items = plan.items.map((item) => {
           const deal = negotiatedDeals[item.sku];
           return {
             ...item,
@@ -225,8 +224,14 @@ export default function RecommendationsPage() {
             originalPrice: item.price,
             negotiatedSavings: deal ? Math.max(0, item.price - deal.negotiatedPrice) : 0,
           };
-        }),
-      })),
+        });
+
+        return {
+          ...plan,
+          totalPrice: items.reduce((sum, item) => sum + item.price, 0),
+          items,
+        };
+      }),
     [negotiatedDeals, selectedPlans],
   );
 
