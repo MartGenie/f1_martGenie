@@ -110,7 +110,6 @@ export default function NegotiationPage() {
   const price = searchParams.get("price");
   const planId = searchParams.get("planId") ?? undefined;
   const planTitle = searchParams.get("planTitle") ?? "Recommended bundle";
-  const autoStart = searchParams.get("autoStart") === "1";
   const queryTargetPrice = searchParams.get("targetPrice");
   const queryMaxAcceptablePrice = searchParams.get("maxAcceptablePrice");
 
@@ -133,7 +132,6 @@ export default function NegotiationPage() {
   const [thinkingMessage, setThinkingMessage] = useState<string | null>(null);
   const [thinkingStartedAt, setThinkingStartedAt] = useState<number | null>(null);
   const [thinkingElapsedSeconds, setThinkingElapsedSeconds] = useState(0);
-  const hasAutoStartedRef = useRef(false);
   const activeRunIdRef = useRef<string | null>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
 
@@ -589,27 +587,6 @@ export default function NegotiationPage() {
     router.push("/order");
   }
 
-  useEffect(() => {
-    if (!autoStart || hasAutoStartedRef.current || !isAuthenticated || !sku) {
-      return;
-    }
-    if (!targetPrice.trim() || !maxAcceptablePrice.trim() || isRunningAgent || agentResult) {
-      return;
-    }
-
-    hasAutoStartedRef.current = true;
-    void handleRunBuyerAgent();
-  }, [
-    agentResult,
-    autoStart,
-    handleRunBuyerAgent,
-    isAuthenticated,
-    isRunningAgent,
-    maxAcceptablePrice,
-    sku,
-    targetPrice,
-  ]);
-
   return (
     <>
       <WorkspaceShell
@@ -622,275 +599,270 @@ export default function NegotiationPage() {
           router.push("/");
         }}
       >
-      <div className="mx-auto grid w-full max-w-7xl gap-5 px-6 py-10 xl:grid-cols-[1.5fr_0.6fr]">
-        <section className="flex min-h-[84vh] flex-col rounded-[30px] border border-[#dbe4ef] bg-white/95 p-4 shadow-[0_24px_80px_rgba(148,163,184,0.14)] md:p-5 lg:p-6">
-          <div className="flex items-center justify-between border-b border-[#e7edf4] pb-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-[#7c8da5]">Conversation</p>
-              <h2 className="mt-1 text-2xl font-black text-[#101828]">Buyer vs Seller</h2>
-              <p className="mt-2 text-sm text-[#667085]">
-                Direct bargaining for <span className="font-semibold text-[#101828]">{title}</span>
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  mode === "manual"
-                    ? "bg-[#2563eb] text-white"
-                    : "border border-[#d8e2ee] bg-white text-[#667085]"
-                }`}
-                onClick={() => setMode("manual")}
-                type="button"
-              >
-                Manual
-              </button>
-              <button
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  mode === "agent"
-                    ? "bg-[#111827] text-white"
-                    : "border border-[#d8e2ee] bg-white text-[#667085]"
-                }`}
-                onClick={() => setMode("agent")}
-                type="button"
-              >
-                Buyer Agent
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-4 flex-1 space-y-3 overflow-y-auto rounded-[28px] border border-[#e7edf4] bg-[linear-gradient(180deg,#fbfdff_0%,#f4f7fb_100%)] p-4 md:p-5">
-            {messages.length === 0 ? (
-              mode === "agent" ? (
-                <div className="rounded-2xl border border-dashed border-[#d5dfeb] bg-white px-4 py-4 text-sm text-[#667085]">
-                  {isRunningAgent ? (
-                    <div className="space-y-2">
-                      <p className="font-semibold text-[#344054]">Buyer agent is negotiating now.</p>
-                      <p>
-                        The system is generating buyer-side decisions, validating them, and sending
-                        them to the seller agent. Transcript messages will appear here round by round.
-                      </p>
-                    </div>
-                  ) : agentResult ? (
-                    <div className="space-y-2">
-                      <p className="font-semibold text-[#344054]">Negotiation finished with no transcript.</p>
-                      <p>{agentResult.summary}</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="font-semibold text-[#344054]">Buyer agent is not running yet.</p>
-                      <p>
-                        Enter your target price and max acceptable price below, then click
-                        <span className="mx-1 font-semibold text-[#2563eb]">Auto bargain</span>
-                        to start the automatic negotiation.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-[#d5dfeb] px-4 py-4 text-sm text-[#667085]">
-                  Preparing the seller agent...
-                </div>
-              )
-            ) : (
-              messages.map((message) => (
-                <article
-                  className={`max-w-[88%] rounded-[24px] px-4 py-3 md:px-5 md:py-4 ${
-                    message.pending
-                      ? "mr-auto border border-dashed border-[#d5dfeb] bg-white text-[#475467]"
-                      : message.role === "buyer"
-                      ? "ml-auto bg-[linear-gradient(180deg,#2563eb_0%,#1d4ed8_100%)] text-white"
-                      : "mr-auto border border-[#dbe4ef] bg-white text-[#101828]"
-                  }`}
-                  key={message.id}
-                >
-                  <p
-                    className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${
-                      message.pending
-                        ? "text-[#98a2b3]"
-                        : message.role === "buyer"
-                          ? "text-[#dbeafe]"
-                          : "text-[#98a2b3]"
-                    }`}
-                  >
-                    {message.label ?? (message.role === "buyer" ? "Buyer" : "Seller")}
-                  </p>
-                  <p className="mt-1 text-sm leading-7">{message.content}</p>
-                  {message.meta ? (
-                    <p
-                      className={`mt-2 text-[11px] ${
-                        message.role === "buyer" ? "text-[#dbeafe]" : "text-[#667085]"
-                      }`}
-                    >
-                      {message.meta}
-                    </p>
-                  ) : null}
-                  {message.id === acceptedSellerMessageId ? (
-                    <button
-                      className="mt-4 inline-flex h-11 items-center justify-center rounded-full bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-5 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.16)] transition hover:brightness-105"
-                      onClick={handleProceedToOrder}
-                      type="button"
-                    >
-                      Place order
-                    </button>
-                  ) : null}
-                </article>
-              ))
-            )}
-          </div>
-
-          {mode === "manual" ? (
-            <form className="mt-4 border-t border-[#e7edf4] pt-4" onSubmit={handleSubmit}>
-              <textarea
-                className="min-h-[110px] w-full resize-none rounded-[24px] border border-[#d7e1ec] bg-[#fbfdff] px-4 py-3 text-sm text-[#101828] outline-none focus:border-[#93c5fd]"
-                disabled={!manualSession || isSubmitting || manualSession.closed}
-                onChange={(event) => setPrompt(event.target.value)}
-                placeholder="Example: I can do $850 if you can confirm today."
-                rows={3}
-                value={prompt}
-              />
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs text-[#667085]">
-                  Mention a price in your message and the backend will submit it as your offer.
+      <div className="grid h-full min-h-screen w-full overflow-hidden xl:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="flex min-h-0 flex-col border-r border-[#e2e8f0] bg-[linear-gradient(180deg,#fbfdff_0%,#f3f6fa_100%)]">
+          <div className="border-b border-[#e2e8f0] px-6 py-5">
+            <div className="mx-auto flex w-full max-w-[920px] items-start justify-between gap-6">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#98a2b3]">
+                  Negotiation
                 </p>
+                <h1 className="mt-2 text-2xl font-black tracking-[-0.04em] text-[#101828]">
+                  {title}
+                </h1>
+                <p className="mt-2 text-sm leading-6 text-[#667085]">
+                  Bargain on a single item with manual offers or let the buyer agent run the flow.
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
                 <button
-                  className="rounded-full bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-5 py-3 text-sm font-semibold text-white hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={!manualSession || isSubmitting || manualSession.closed || !prompt.trim()}
-                  type="submit"
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                    mode === "manual"
+                      ? "bg-[#111827] text-white"
+                      : "text-[#667085] hover:bg-white"
+                  }`}
+                  onClick={() => setMode("manual")}
+                  type="button"
                 >
-                  {isSubmitting ? "Sending..." : "Send offer"}
+                  Manual
+                </button>
+                <button
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                    mode === "agent"
+                      ? "bg-[#111827] text-white"
+                      : "text-[#667085] hover:bg-white"
+                  }`}
+                  onClick={() => setMode("agent")}
+                  type="button"
+                >
+                  Agent
                 </button>
               </div>
-              {error ? <p className="mt-3 text-sm text-rose-600">{error}</p> : null}
-            </form>
-          ) : (
-            <div className="mt-4 border-t border-[#e7edf4] pt-4">
-              <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-                <div className="grid gap-3 md:grid-cols-2">
-                  <label className="block">
-                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[#7c8da5]">
-                      Target Price
-                    </span>
-                    <input
-                      className="h-12 w-full rounded-2xl border border-[#d7e1ec] bg-[#fbfdff] px-4 text-sm text-[#101828] outline-none focus:border-[#93c5fd]"
-                      min="1"
-                      onChange={(event) => setTargetPrice(event.target.value)}
-                      placeholder="Ideal closing price"
-                      step="0.01"
-                      type="number"
-                      value={targetPrice}
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[#7c8da5]">
-                      Max Acceptable
-                    </span>
-                    <input
-                      className="h-12 w-full rounded-2xl border border-[#d7e1ec] bg-[#fbfdff] px-4 text-sm text-[#101828] outline-none focus:border-[#93c5fd]"
-                      min="1"
-                      onChange={(event) => setMaxAcceptablePrice(event.target.value)}
-                      placeholder="Hard ceiling"
-                      step="0.01"
-                      type="number"
-                      value={maxAcceptablePrice}
-                    />
-                  </label>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    className="h-12 rounded-full border border-[#d7e1ec] bg-white px-5 text-sm font-semibold text-[#344054] transition hover:border-[#bfd4ec] hover:bg-[#f8fbff] disabled:cursor-not-allowed disabled:opacity-60"
-                    onClick={() => void handleCancelBuyerAgent()}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="h-12 rounded-full bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-5 text-sm font-semibold text-white hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isRunningAgent || !targetPrice.trim() || !maxAcceptablePrice.trim()}
-                    onClick={handleRunBuyerAgent}
-                    type="button"
-                  >
-                    {isRunningAgent ? "Running..." : "Auto bargain"}
-                  </button>
-                </div>
-              </div>
-              <p className="mt-3 text-xs text-[#667085]">
-                The buyer agent will negotiate automatically for up to 5 rounds. It will try to hit
-                your target price and never go above your max acceptable price.
-              </p>
-              {agentResult ? (
-                <p className="mt-2 text-sm text-[#344054]">
-                  Outcome: <span className="font-semibold">{agentResult.outcome}</span>
-                  {agentResult.final_price ? ` | Final price: ${agentResult.final_price.toLocaleString()}` : ""}
-                </p>
-              ) : null}
-              {error ? <p className="mt-3 text-sm text-rose-600">{error}</p> : null}
-            </div>
-          )}
-        </section>
-
-        <aside className="rounded-[28px] border border-[#dbe4ef] bg-[linear-gradient(180deg,#f8fbff_0%,#eef3f9_100%)] p-5 shadow-[0_20px_60px_rgba(148,163,184,0.14)]">
-          <p className="text-xs font-semibold tracking-[0.24em] text-[#7c8da5] uppercase">Seller agent</p>
-          <h1 className="mt-2 text-3xl font-black text-[#101828]">Try bargain</h1>
-          <p className="mt-3 text-sm leading-7 text-[#667085]">
-            Negotiate directly with the seller on a single product before you go back to place the
-            order.
-          </p>
-
-          <div className="mt-5 rounded-3xl border border-[#dfe7f1] bg-white/95 p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-[#7c8da5]">Current item</p>
-            <h2 className="mt-1 text-xl font-bold text-[#101828]">{title}</h2>
-            <p className="mt-2 text-sm text-[#667085]">From plan: {planTitle}</p>
-            <div className="mt-4 space-y-3">
-              <div className="rounded-2xl bg-[#f8fbff] p-3">
-                <p className="text-xs text-[#7c8da5]">List price</p>
-                <p className="mt-1 text-lg font-bold text-[#101828]">{priceLabel}</p>
-              </div>
-              <div className="rounded-2xl bg-[#f8fbff] p-3">
-                <p className="text-xs text-[#7c8da5]">Negotiation status</p>
-                <p className="mt-1 text-sm font-semibold text-[#101828]">{status}</p>
-              </div>
             </div>
           </div>
 
-          {session ? (
-            <div className="mt-5 rounded-3xl border border-[#dfe7f1] bg-white/90 p-4 text-sm text-[#475467]">
-              <p>Session ID: {session.session_id}</p>
-              <p className="mt-1">Max rounds: {session.max_rounds}</p>
-              <p className="mt-1">
-                Seller floor: {formatMoney(Number(session.pricing_params.min_expected_price ?? 0)) ?? "N/A"}
-              </p>
-              <p className="mt-1">
-                Current result:{" "}
-                {session.closed && session.accepted_price
-                  ? `Accepted at ${formatMoney(session.accepted_price)}`
-                  : session.closed
-                    ? "Closed without accepted price"
-                    : "Open"}
-              </p>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-8">
+            <div className="mx-auto flex max-w-[920px] flex-col gap-5">
+              {messages.length === 0 ? (
+                <div className="mx-auto w-full max-w-[760px] rounded-[24px] border border-dashed border-[#d8e2ee] bg-white/70 px-5 py-5 text-sm leading-7 text-[#667085]">
+                  {mode === "agent"
+                    ? isRunningAgent
+                      ? "The agent is preparing the first offer. Updates will appear here as the negotiation progresses."
+                      : "Set your target and walk-away price on the right, then start the negotiation."
+                    : "The seller session is ready. Send your first offer below to begin the conversation."}
+                </div>
+              ) : (
+                messages.map((message) => (
+                  <div
+                    className={`mx-auto w-full max-w-[760px] ${
+                      message.role === "buyer" ? "flex justify-end" : "flex justify-start"
+                    }`}
+                    key={message.id}
+                  >
+                    <article
+                      className={`max-w-[78%] ${
+                        message.pending
+                          ? "rounded-[22px] border border-dashed border-[#d6e0eb] bg-white px-4 py-3 text-[#475467]"
+                          : message.role === "buyer"
+                            ? "rounded-[24px] bg-[#eceff3] px-4 py-3 text-[#101828]"
+                            : "px-1 py-1 text-[#101828]"
+                      }`}
+                    >
+                      <p className="text-sm leading-7">{message.content}</p>
+                      {message.meta ? (
+                        <p className="mt-2 text-[11px] text-[#98a2b3]">{message.meta}</p>
+                      ) : null}
+                      {message.id === acceptedSellerMessageId ? (
+                        <button
+                          className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-5 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.16)] transition hover:brightness-105"
+                          onClick={handleProceedToOrder}
+                          type="button"
+                        >
+                          Place order
+                        </button>
+                      ) : null}
+                    </article>
+                  </div>
+                ))
+              )}
             </div>
-          ) : null}
+          </div>
 
-          {mode === "agent" ? (
-            <div className="mt-5 rounded-3xl border border-[#dfe7f1] bg-white/90 p-4 text-sm text-[#475467]">
-              <p className="font-semibold text-[#101828]">Buyer agent status</p>
-              <p className="mt-2">
-                {isRunningAgent
-                  ? "Running automatic negotiation..."
-                  : agentResult
-                    ? `Outcome: ${agentResult.outcome}`
-                    : "Waiting to start."}
-              </p>
-              {agentResult ? (
-                <>
-                  <p className="mt-1">Target price: {formatMoney(agentResult.target_price) ?? "N/A"}</p>
-                  <p className="mt-1">
-                    Max acceptable: {formatMoney(agentResult.max_acceptable_price) ?? "N/A"}
+          <div className="border-t border-[#e2e8f0] px-6 py-5">
+            <div className="mx-auto w-full max-w-[920px]">
+              {mode === "manual" ? (
+                <form className="space-y-3" onSubmit={handleSubmit}>
+                  <div className="rounded-[28px] border border-[#d7e1ec] bg-white px-4 py-3 shadow-[0_10px_30px_rgba(148,163,184,0.08)]">
+                    <textarea
+                      className="min-h-[68px] w-full resize-none bg-transparent text-sm leading-7 text-[#101828] outline-none placeholder:text-[#98a2b3]"
+                      disabled={!manualSession || isSubmitting || manualSession.closed}
+                      onChange={(event) => setPrompt(event.target.value)}
+                      placeholder="Example: I can do $850 if you can confirm today."
+                      rows={3}
+                      value={prompt}
+                    />
+                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-[#eef2f6] pt-3">
+                      <p className="text-xs text-[#98a2b3]">
+                        Mention a price in your message and it will be submitted as your offer.
+                      </p>
+                      <button
+                        className="inline-flex h-9 items-center justify-center rounded-full bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-4 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={!manualSession || isSubmitting || manualSession.closed || !prompt.trim()}
+                        type="submit"
+                      >
+                        {isSubmitting ? "Sending..." : "Send offer"}
+                      </button>
+                    </div>
+                  </div>
+                  {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+                </form>
+              ) : (
+                <div className="space-y-3">
+                  <div className="rounded-[28px] border border-[#d7e1ec] bg-white px-4 py-4 shadow-[0_10px_30px_rgba(148,163,184,0.08)]">
+                    <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+                      <label className="block">
+                        <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-[#98a2b3]">
+                          Target price
+                        </span>
+                        <input
+                          className="h-11 w-full rounded-2xl border border-[#d7e1ec] bg-[#fbfdff] px-4 text-sm text-[#101828] outline-none focus:border-[#93c5fd]"
+                          min="1"
+                          onChange={(event) => setTargetPrice(event.target.value)}
+                          placeholder="Ideal closing price"
+                          step="0.01"
+                          type="number"
+                          value={targetPrice}
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-[#98a2b3]">
+                          Walk-away price
+                        </span>
+                        <input
+                          className="h-11 w-full rounded-2xl border border-[#d7e1ec] bg-[#fbfdff] px-4 text-sm text-[#101828] outline-none focus:border-[#93c5fd]"
+                          min="1"
+                          onChange={(event) => setMaxAcceptablePrice(event.target.value)}
+                          placeholder="Hard ceiling"
+                          step="0.01"
+                          type="number"
+                          value={maxAcceptablePrice}
+                        />
+                      </label>
+                      <div className="flex items-center gap-3 md:justify-end">
+                        <button
+                          className="h-11 rounded-full border border-[#d7e1ec] bg-white px-4 text-sm font-semibold text-[#344054] transition hover:border-[#bfd4ec] hover:bg-[#f8fbff] disabled:cursor-not-allowed disabled:opacity-60"
+                          onClick={() => void handleCancelBuyerAgent()}
+                          type="button"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          className="h-11 rounded-full bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-5 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={isRunningAgent || !targetPrice.trim() || !maxAcceptablePrice.trim()}
+                          onClick={handleRunBuyerAgent}
+                          type="button"
+                        >
+                          {isRunningAgent ? "Running..." : "Start agent"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  {agentResult ? (
+                    <p className="text-sm text-[#475467]">
+                      Outcome: <span className="font-semibold text-[#101828]">{agentResult.outcome}</span>
+                      {agentResult.final_price ? ` · Final price ${agentResult.final_price.toLocaleString()}` : ""}
+                    </p>
+                  ) : null}
+                  {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <aside className="flex min-h-0 flex-col bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)]">
+          <div className="border-b border-[#e2e8f0] px-5 py-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#98a2b3]">
+              Live context
+            </p>
+            <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-[#101828]">
+              Negotiation setup
+            </h2>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+            <div className="space-y-4">
+              <section className="border-b border-[#e6edf5] pb-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#98a2b3]">
+                  Current item
+                </p>
+                <h3 className="mt-2 text-lg font-bold leading-7 text-[#101828]">{title}</h3>
+                <p className="mt-2 text-sm text-[#667085]">From package: {planTitle}</p>
+              </section>
+
+              <section className="border-b border-[#e6edf5] pb-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#98a2b3]">
+                  Price guardrails
+                </p>
+                <div className="mt-3 grid gap-3">
+                  <div className="rounded-[22px] border border-[#dfe7f1] bg-white px-4 py-3">
+                    <p className="text-xs text-[#98a2b3]">List price</p>
+                    <p className="mt-1 text-lg font-bold text-[#101828]">{priceLabel}</p>
+                  </div>
+                  <div className="rounded-[22px] border border-[#dfe7f1] bg-white px-4 py-3">
+                    <p className="text-xs text-[#98a2b3]">Target price</p>
+                    <p className="mt-1 text-lg font-bold text-[#101828]">
+                      {targetPrice ? formatMoney(Number(targetPrice)) ?? "N/A" : "Not set"}
+                    </p>
+                  </div>
+                  <div className="rounded-[22px] border border-[#dfe7f1] bg-white px-4 py-3">
+                    <p className="text-xs text-[#98a2b3]">Walk-away price</p>
+                    <p className="mt-1 text-lg font-bold text-[#101828]">
+                      {maxAcceptablePrice ? formatMoney(Number(maxAcceptablePrice)) ?? "N/A" : "Not set"}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="border-b border-[#e6edf5] pb-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#98a2b3]">
+                  Status
+                </p>
+                <p className="mt-3 text-sm leading-7 text-[#344054]">{status}</p>
+                {session ? (
+                  <div className="mt-3 space-y-1 text-xs text-[#667085]">
+                    <p>Max rounds: {session.max_rounds}</p>
+                    <p>
+                      Seller floor: {formatMoney(Number(session.pricing_params.min_expected_price ?? 0)) ?? "N/A"}
+                    </p>
+                    <p>
+                      Session:{" "}
+                      {session.closed && session.accepted_price
+                        ? `Accepted at ${formatMoney(session.accepted_price)}`
+                        : session.closed
+                          ? "Closed"
+                          : "Open"}
+                    </p>
+                  </div>
+                ) : null}
+              </section>
+
+              {mode === "agent" ? (
+                <section>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#98a2b3]">
+                    Agent run
                   </p>
-                  <p className="mt-1">Summary: {agentResult.summary}</p>
-                </>
+                  <p className="mt-3 text-sm leading-7 text-[#344054]">
+                    {isRunningAgent
+                      ? "The buyer agent is actively negotiating."
+                      : agentResult
+                        ? agentResult.summary
+                        : "Set your guardrails, then start the agent when you are ready."}
+                  </p>
+                </section>
               ) : null}
             </div>
-          ) : null}
+          </div>
         </aside>
       </div>
       </WorkspaceShell>
