@@ -60,13 +60,17 @@ export default function WorkspaceShell({
   const router = useRouter();
   const [selectedHistoryId, setSelectedHistoryId] = useState("current");
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const [userEmail, setUserEmail] = useState(() => readAuthUserEmail());
   const [remoteHistoryItems, setRemoteHistoryItems] = useState<HistoryItem[]>([]);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const authToken = useSyncExternalStore(
     subscribeAuthSnapshot,
     readAuthTokenSnapshot,
-    readAuthTokenSnapshot,
+    readAuthTokenServerSnapshot,
+  );
+  const authUserEmail = useSyncExternalStore(
+    subscribeAuthSnapshot,
+    readAuthUserEmailSnapshot,
+    readAuthUserEmailServerSnapshot,
   );
   const effectiveAuthenticated = isAuthenticated || Boolean(authToken);
 
@@ -74,7 +78,7 @@ export default function WorkspaceShell({
     () => (effectiveAuthenticated ? remoteHistoryItems : []),
     [effectiveAuthenticated, remoteHistoryItems],
   );
-  const displayEmail = effectiveAuthenticated ? userEmail || readAuthUserEmail() || "Signed in" : "";
+  const displayEmail = effectiveAuthenticated ? authUserEmail || "Signed in" : "";
 
   useEffect(() => {
     if (!effectiveAuthenticated) {
@@ -132,7 +136,6 @@ export default function WorkspaceShell({
 
     void fetchCurrentUser(token)
       .then((user) => {
-        setUserEmail(user.email);
         saveAuthUserEmail(user.email);
       })
       .catch(() => clearAccessToken());
@@ -166,9 +169,9 @@ export default function WorkspaceShell({
   }
 
   const avatarLabel = useMemo(() => {
-    const base = userEmail.trim().slice(0, 2);
+    const base = authUserEmail.trim().slice(0, 2);
     return base.length > 0 ? base.toUpperCase() : "NX";
-  }, [userEmail]);
+  }, [authUserEmail]);
 
   return (
     <main className="h-screen overflow-hidden bg-[linear-gradient(180deg,#f7f9fc_0%,#eef2f7_100%)] text-[#101828]">
@@ -341,4 +344,16 @@ function subscribeAuthSnapshot(onStoreChange: () => void) {
 
 function readAuthTokenSnapshot() {
   return readAccessToken() ?? "";
+}
+
+function readAuthTokenServerSnapshot() {
+  return "";
+}
+
+function readAuthUserEmailSnapshot() {
+  return readAuthUserEmail() ?? "";
+}
+
+function readAuthUserEmailServerSnapshot() {
+  return "";
 }

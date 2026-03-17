@@ -7,7 +7,7 @@ import { clearAccessToken, fetchCurrentUser, readAccessToken } from "@/lib/auth"
 import type { PlanOption } from "@/lib/chat-api";
 import type { ChatMessage, TimelineEvent } from "@/lib/chat-contract";
 import { readNegotiatedDeals, readNegotiationRuns } from "@/lib/negotiation-store";
-import { setOrderCheckout } from "@/lib/order-store";
+import { clearCurrentOrder, setOrderCheckout } from "@/lib/order-store";
 import AuthModal from "@/src/components/AuthModal";
 import WorkspaceShell from "@/src/components/WorkspaceShell";
 
@@ -238,7 +238,7 @@ export default function RecommendationsPage() {
   const activePlan =
     displayedPlans.find((plan) => plan.id === activePlanId) ?? displayedPlans[0] ?? null;
 
-  function handleConfirmOrder() {
+  function handleBeginOrder() {
     if (!activePlan) {
       return;
     }
@@ -259,10 +259,11 @@ export default function RecommendationsPage() {
           price: item.price,
           quantity: 1,
           imageUrl: item.imageUrl ?? null,
-        })),
+      })),
       subtotal,
       negotiatedSavings,
     });
+    clearCurrentOrder();
     router.push("/order");
   }
 
@@ -364,7 +365,7 @@ export default function RecommendationsPage() {
                         <div className="flex flex-wrap items-center gap-3">
                           <button
                             className="inline-flex h-11 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-5 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.18)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-                            onClick={handleConfirmOrder}
+                            onClick={handleBeginOrder}
                             type="button"
                           >
                             Place order
