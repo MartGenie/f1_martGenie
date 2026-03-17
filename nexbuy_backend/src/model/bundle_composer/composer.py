@@ -23,7 +23,9 @@ _PACKAGE_RE = re.compile(
     r"\b(set|bundle|combo|collection|suite|\d+\s*[- ]piece|with\s+\d+\s+chairs?)\b"
 )
 _INTERNAL_CODE_RE = re.compile(
-    r"\b(?:sku|spu|product\s*id|item\s*id|id)\s*[:#-]?\s*[a-z0-9_-]+\b|\b[a-z]{0,3}\d{4,}[a-z0-9_-]*\b",
+    r"\b(?:sku|spu|product\s*id|item\s*id|id)\s*[:#-]?\s*[a-z0-9_-]+\b|"
+    r"\b(?=[a-z0-9_-]*[a-z])[a-z]{0,3}\d{4,}[a-z0-9_-]*\b|"
+    r"(?<!\$)\b\d{5,}\b(?!\.\d)",
     re.IGNORECASE,
 )
 _COMPOSE_CACHE: dict[str, tuple[float, BundleComposeResult]] = {}
