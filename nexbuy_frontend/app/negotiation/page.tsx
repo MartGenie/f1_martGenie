@@ -134,6 +134,8 @@ export default function NegotiationPage() {
   const [thinkingElapsedSeconds, setThinkingElapsedSeconds] = useState(0);
   const activeRunIdRef = useRef<string | null>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
+  const agentTurnsRef = useRef<BuyerAgentTurn[]>([]);
+  const sellerSessionRef = useRef<NegotiationSession | null>(null);
 
   const priceLabel = useMemo(() => {
     const amount = price ? Number(price) : null;
@@ -160,6 +162,7 @@ export default function NegotiationPage() {
     setMode("agent");
     setAgentMessages(buildStoredRunTranscript(stored));
     setSession(stored.result?.seller_session ?? stored.sellerSession);
+    sellerSessionRef.current = stored.result?.seller_session ?? stored.sellerSession;
     setStatus(stored.progressLabel);
     setThinkingMessage(stored.status === "running" ? stored.progressLabel : null);
     setError("");
@@ -167,7 +170,35 @@ export default function NegotiationPage() {
     setMaxAcceptablePrice(String(stored.maxAcceptablePrice));
     setAgentResult(stored.result ?? null);
     setIsRunningAgent(stored.status === "running");
+    agentTurnsRef.current = stored.result?.turns ?? stored.turns;
   }
+
+  const persistNegotiationRun = useCallback(
+    (params: {
+      status: "running" | "done";
+      progressLabel: string;
+      progressPercent: number;
+      result?: BuyerAgentRunResult | null;
+    }) => {
+      writeNegotiationRun({
+        sku,
+        title,
+        originalPrice: Number(price ?? 0),
+        planId,
+        planTitle,
+        targetPrice: Number(targetPrice) || 0,
+        maxAcceptablePrice: Number(maxAcceptablePrice) || 0,
+        status: params.status,
+        progressLabel: params.progressLabel,
+        progressPercent: params.progressPercent,
+        turns: agentTurnsRef.current,
+        sellerSession: sellerSessionRef.current,
+        result: params.result ?? null,
+        savedAt: new Date().toISOString(),
+      });
+    },
+    [maxAcceptablePrice, planId, planTitle, price, sku, targetPrice, title],
+  );
 
   useEffect(() => {
     if (!sku) {
@@ -275,6 +306,7 @@ export default function NegotiationPage() {
               ];
         setManualSession(created);
         setSession(created);
+        sellerSessionRef.current = created;
         setManualMessages(initialMessages);
         if (!storedRun) {
           setMessages([]);
@@ -418,15 +450,26 @@ export default function NegotiationPage() {
     if (event.type === "thinking") {
       setThinkingMessage(event.message);
       setThinkingStartedAt(Date.now());
+      persistNegotiationRun({
+        status: "running",
+        progressLabel: event.message,
+        progressPercent: 12,
+      });
       return;
     }
 
     if (event.type === "session_started") {
       activeRunIdRef.current = event.run_id;
       setSession(event.seller_session);
+      sellerSessionRef.current = event.seller_session;
       setStatus("Buyer agent started. Waiting for round 1.");
       setThinkingMessage("Buyer agent is preparing the opening offer.");
       setThinkingStartedAt(Date.now());
+      persistNegotiationRun({
+        status: "running",
+        progressLabel: "Buyer agent started. Waiting for round 1.",
+        progressPercent: 18,
+      });
       return;
     }
 
@@ -434,6 +477,12 @@ export default function NegotiationPage() {
       setThinkingMessage("Seller agent is evaluating the new offer.");
       setThinkingStartedAt(Date.now());
       setAgentMessages((current) => [...current, buildBuyerAgentBubble(event.turn)]);
+      agentTurnsRef.current = [...agentTurnsRef.current, event.turn];
+      persistNegotiationRun({
+        status: "running",
+        progressLabel: "Seller agent is evaluating the new offer.",
+        progressPercent: 45,
+      });
       return;
     }
 
@@ -441,6 +490,19 @@ export default function NegotiationPage() {
       setThinkingMessage("Buyer agent is reviewing the seller response.");
       setThinkingStartedAt(Date.now());
       setAgentMessages((current) => [...current, { ...buildSellerBubble(event.turn), label: "Seller Agent" }]);
+      if (agentTurnsRef.current.length > 0) {
+        const updated = [...agentTurnsRef.current];
+        updated[updated.length - 1] = {
+          ...updated[updated.length - 1],
+          seller_turn: event.turn,
+        };
+        agentTurnsRef.current = updated;
+      }
+      persistNegotiationRun({
+        status: "running",
+        progressLabel: "Buyer agent is reviewing the seller response.",
+        progressPercent: 72,
+      });
       return;
     }
 
@@ -451,6 +513,8 @@ export default function NegotiationPage() {
       setAgentResult(event.result);
       setIsRunningAgent(false);
       setSession(event.result.seller_session);
+      sellerSessionRef.current = event.result.seller_session;
+      agentTurnsRef.current = event.result.turns;
       setStatus(event.result.summary);
       writeNegotiationRun({
         sku,
@@ -491,8 +555,13 @@ export default function NegotiationPage() {
       setIsRunningAgent(false);
       setError(event.error);
       setStatus("Buyer agent negotiation failed.");
+      persistNegotiationRun({
+        status: "done",
+        progressLabel: "Buyer agent negotiation failed.",
+        progressPercent: 100,
+      });
     }
-  }, [planId, planTitle, price, sku, title]);
+  }, [persistNegotiationRun, planId, planTitle, price, sku, title]);
 
   const handleRunBuyerAgent = useCallback(async () => {
     const parsedTarget = Number(targetPrice);
@@ -519,6 +588,13 @@ export default function NegotiationPage() {
     setThinkingStartedAt(Date.now());
     setStatus("Buyer agent is bargaining with the seller...");
     activeRunIdRef.current = null;
+    agentTurnsRef.current = [];
+    sellerSessionRef.current = session;
+    persistNegotiationRun({
+      status: "running",
+      progressLabel: "Buyer agent is preparing the opening offer.",
+      progressPercent: 5,
+    });
     streamAbortRef.current?.abort();
     streamAbortRef.current = new AbortController();
 
@@ -539,6 +615,11 @@ export default function NegotiationPage() {
         setError(message);
         setThinkingMessage(null);
         setStatus("Buyer agent negotiation failed.");
+        persistNegotiationRun({
+          status: "done",
+          progressLabel: "Buyer agent negotiation failed.",
+          progressPercent: 100,
+        });
       }
     } finally {
       setIsRunningAgent(false);
@@ -548,6 +629,8 @@ export default function NegotiationPage() {
     buildStreamEvent,
     isRunningAgent,
     maxAcceptablePrice,
+    persistNegotiationRun,
+    session,
     sku,
     targetPrice,
   ]);
@@ -568,6 +651,11 @@ export default function NegotiationPage() {
     setStatus("Buyer agent negotiation cancelled.");
     setError("");
     activeRunIdRef.current = null;
+    persistNegotiationRun({
+      status: "done",
+      progressLabel: "Buyer agent negotiation cancelled.",
+      progressPercent: 100,
+    });
   }
 
   function handleProceedToOrder() {

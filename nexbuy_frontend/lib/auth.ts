@@ -26,9 +26,11 @@ export class AuthRequestError extends Error {
 }
 
 const ACCESS_TOKEN_KEY = "nexbuy.access_token";
+const USER_EMAIL_KEY = "nexbuy.auth.user_email";
 const OAUTH_RETURN_TO_KEY = "nexbuy.auth.return_to";
 const DEFAULT_API_BASE_URL = "/api";
 const DEFAULT_BACKEND_ORIGIN = "http://127.0.0.1:8000";
+export const AUTH_STATE_CHANGE_EVENT = "nexbuy.auth.changed";
 
 export function getApiBaseUrl() {
   const configuredBaseUrl =
@@ -50,6 +52,7 @@ export function saveAccessToken(token: string) {
   }
 
   window.localStorage.setItem(ACCESS_TOKEN_KEY, token);
+  window.dispatchEvent(new Event(AUTH_STATE_CHANGE_EVENT));
 }
 
 export function readAccessToken() {
@@ -60,12 +63,31 @@ export function readAccessToken() {
   return window.localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
+export function saveAuthUserEmail(email: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(USER_EMAIL_KEY, email);
+  window.dispatchEvent(new Event(AUTH_STATE_CHANGE_EVENT));
+}
+
+export function readAuthUserEmail() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return window.localStorage.getItem(USER_EMAIL_KEY) ?? "";
+}
+
 export function clearAccessToken() {
   if (typeof window === "undefined") {
     return;
   }
 
   window.localStorage.removeItem(ACCESS_TOKEN_KEY);
+  window.localStorage.removeItem(USER_EMAIL_KEY);
+  window.dispatchEvent(new Event(AUTH_STATE_CHANGE_EVENT));
 }
 
 export function saveOAuthReturnTo(path: string) {

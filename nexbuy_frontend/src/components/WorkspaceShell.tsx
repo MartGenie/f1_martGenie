@@ -1,6 +1,13 @@
 "use client";
 
-import { clearAccessToken, fetchCurrentUser, readAccessToken } from "@/lib/auth";
+import {
+  AUTH_STATE_CHANGE_EVENT,
+  clearAccessToken,
+  fetchCurrentUser,
+  readAccessToken,
+  readAuthUserEmail,
+  saveAuthUserEmail,
+} from "@/lib/auth";
 import { fetchChatHistory } from "@/lib/chat-api";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,6 +16,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
@@ -52,14 +60,24 @@ export default function WorkspaceShell({
   const router = useRouter();
   const [selectedHistoryId, setSelectedHistoryId] = useState("current");
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const [userEmail, setUserEmail] = useState("");
+  const [userEmail, setUserEmail] = useState(() => readAuthUserEmail());
   const [remoteHistoryItems, setRemoteHistoryItems] = useState<HistoryItem[]>([]);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const authToken = useSyncExternalStore(
+    subscribeAuthSnapshot,
+    readAuthTokenSnapshot,
+    readAuthTokenSnapshot,
+  );
+  const effectiveAuthenticated = isAuthenticated || Boolean(authToken);
 
-  const historyItems = useMemo<HistoryItem[]>(() => remoteHistoryItems, [remoteHistoryItems]);
+  const historyItems = useMemo<HistoryItem[]>(
+    () => (effectiveAuthenticated ? remoteHistoryItems : []),
+    [effectiveAuthenticated, remoteHistoryItems],
+  );
+  const displayEmail = effectiveAuthenticated ? userEmail || readAuthUserEmail() || "Signed in" : "";
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!effectiveAuthenticated) {
       return;
     }
 
@@ -100,22 +118,25 @@ export default function WorkspaceShell({
       window.removeEventListener(CHAT_HISTORY_REFRESH_EVENT, handleRefresh);
       window.removeEventListener("focus", handleRefresh);
     };
-  }, [isAuthenticated]);
+  }, [effectiveAuthenticated]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!effectiveAuthenticated) {
       return;
     }
 
-    const token = readAccessToken();
+    const token = authToken || readAccessToken();
     if (!token) {
       return;
     }
 
     void fetchCurrentUser(token)
-      .then((user) => setUserEmail(user.email))
+      .then((user) => {
+        setUserEmail(user.email);
+        saveAuthUserEmail(user.email);
+      })
       .catch(() => clearAccessToken());
-  }, [isAuthenticated]);
+  }, [authToken, effectiveAuthenticated]);
 
   const activeHistoryId = currentSessionId ?? selectedHistoryId;
 
@@ -244,7 +265,7 @@ export default function WorkspaceShell({
                   About MartGennie
                 </Link>
               </div>
-              {isAuthenticated ? (
+              {effectiveAuthenticated ? (
                 <div className="relative" ref={accountMenuRef}>
                   <button
                     className="flex w-full items-center gap-3 rounded-[18px] bg-[linear-gradient(180deg,#f7fbff_0%,#eef5fd_100%)] px-4 py-3 text-left transition hover:bg-[linear-gradient(180deg,#f3f8ff_0%,#e8f1fc_100%)]"
@@ -255,7 +276,7 @@ export default function WorkspaceShell({
                       {avatarLabel}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-[#101828]">{userEmail || "Signed in"}</p>
+                      <p className="truncate text-sm font-semibold text-[#101828]">{displayEmail}</p>
                     </div>
                     <span className="text-sm text-[#667085]">{accountMenuOpen ? "▴" : "▾"}</span>
                   </button>
@@ -303,4 +324,21 @@ export default function WorkspaceShell({
       </div>
     </main>
   );
+}
+
+function subscribeAuthSnapshot(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  window.addEventListener(AUTH_STATE_CHANGE_EVENT, onStoreChange);
+  window.addEventListener("storage", onStoreChange);
+  return () => {
+    window.removeEventListener(AUTH_STATE_CHANGE_EVENT, onStoreChange);
+    window.removeEventListener("storage", onStoreChange);
+  };
+}
+
+function readAuthTokenSnapshot() {
+  return readAccessToken() ?? "";
 }
