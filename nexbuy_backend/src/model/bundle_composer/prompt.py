@@ -34,6 +34,8 @@ Rules:
    - Explain why this bundle fits the user's brief.
    - Mention coverage of target items/categories, budget fit, and style/constraint alignment when relevant.
    - If there is a tradeoff, state it clearly.
+   - Never mention SKU, SPU, product ID, numeric catalog code, or internal identifier.
+   - Refer to products by plain-language product type or title only.
 9) The 3 options must represent different bundle strategies, for example:
    - safest / best overall fit
    - lowest total cost
@@ -41,6 +43,10 @@ Rules:
    Do not return 3 near-duplicates.
 10) Do not mix overlapping full package sets in one option.
 11) If uncertain, still try to produce 3 distinct valid options before giving fewer.
+12) In title, summary, explanation, and selections[].reason:
+   - do not mention SKU/SPU/ID/codes,
+   - do not quote raw internal identifiers,
+   - do not include standalone product numbers like 48648 or JJ483698XC.
 """.strip()
 
 
@@ -51,6 +57,7 @@ def build_user_prompt(payload_json: str) -> str:
         "Copy selections[].sku exactly from allowed_skus.\n"
         "Make the options meaningfully different in strategy, not minor variations.\n"
         "Write explanation as a persuasive package-level rationale, not as a generic sentence.\n"
+        "Never mention SKU, SPU, product ID, or raw item codes in any user-facing text fields.\n"
         "Prefer 3 valid options over 1 conservative option.\n"
         "Input:\n"
         f"{payload_json}"
@@ -65,6 +72,7 @@ def build_retry_prompt(payload_json: str) -> str:
         "Return 3 distinct options if possible.\n"
         "Do not output near-duplicate bundles.\n"
         "Keep title short, summary concise, and explanation clear and persuasive.\n"
+        "Do not mention SKU, SPU, IDs, or raw numeric product codes in any user-facing text.\n"
         "Explanation should still say why the bundle fits the brief.\n"
         "If uncertain, choose simpler but still distinct bundles.\n"
         f"{payload_json}"

@@ -22,6 +22,10 @@ COMPOSE_CACHE_MAX_ITEMS = 256
 _PACKAGE_RE = re.compile(
     r"\b(set|bundle|combo|collection|suite|\d+\s*[- ]piece|with\s+\d+\s+chairs?)\b"
 )
+_INTERNAL_CODE_RE = re.compile(
+    r"\b(?:sku|spu|product\s*id|item\s*id|id)\s*[:#-]?\s*[a-z0-9_-]+\b|\b[a-z]{0,3}\d{4,}[a-z0-9_-]*\b",
+    re.IGNORECASE,
+)
 _COMPOSE_CACHE: dict[str, tuple[float, BundleComposeResult]] = {}
 _ROOM_FAMILY_KEYWORDS: dict[str, list[str]] = {
     "dining": ["dining", "table", "chair", "stool"],
@@ -316,6 +320,24 @@ def _normalize_compose_result(raw: dict[str, Any]) -> BundleComposeResult:
     return BundleComposeResult(options=[single])
 
 
+def _sanitize_user_facing_text(value: str) -> str:
+    cleaned = _INTERNAL_CODE_RE.sub("", value)
+    cleaned = re.sub(r"\(\s*\)", "", cleaned)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned)
+    cleaned = re.sub(r"\s+([,.;:])", r"\1", cleaned)
+    return cleaned.strip(" ,.;:-")
+
+
+def _sanitize_compose_result(result: BundleComposeResult) -> BundleComposeResult:
+    for option in result.options:
+        option.title = _sanitize_user_facing_text(option.title)
+        option.summary = _sanitize_user_facing_text(option.summary)
+        option.explanation = _sanitize_user_facing_text(option.explanation)
+        for selection in option.selections:
+            selection.reason = _sanitize_user_facing_text(selection.reason)
+    return result
+
+
 def _cache_key(
     analysis: UserContentAnalysisResult,
     candidates: list[ProductRow],
@@ -410,7 +432,7 @@ async def compose_bundle_with_ai(
                 timeout=timeout_seconds,
             )
             raw = _extract_json(result.content)
-            composed = _normalize_compose_result(raw)
+            composed = _sanitize_compose_result(_normalize_compose_result(raw))
             valid_options: list[BundleOption] = []
             total_guard_drops = 0
             for opt in composed.options[:MAX_OPTIONS]:
