@@ -378,18 +378,15 @@ export default function RecommendationsPage() {
                                 ${item.price.toLocaleString()}
                               </p>
                               <Link
-                                className="group mt-3 flex w-full items-center justify-between rounded-[20px] border border-[#cfe0f5] bg-[linear-gradient(135deg,#0f172a_0%,#172554_42%,#2563eb_100%)] px-4 py-3 text-white shadow-[0_16px_38px_rgba(37,99,235,0.24)] transition hover:scale-[1.01] hover:shadow-[0_20px_48px_rgba(37,99,235,0.3)]"
+                                className="group mt-3 flex w-full items-center justify-between rounded-[18px] border border-[#cfe0f5] bg-[linear-gradient(135deg,#0f172a_0%,#172554_42%,#2563eb_100%)] px-4 py-2.5 text-white shadow-[0_16px_38px_rgba(37,99,235,0.24)] transition hover:scale-[1.01] hover:shadow-[0_20px_48px_rgba(37,99,235,0.3)]"
                                 href={`/negotiation?sku=${encodeURIComponent(item.sku)}&title=${encodeURIComponent(item.title)}&price=${encodeURIComponent(String(item.price))}&planId=${encodeURIComponent(activePlan.id)}&planTitle=${encodeURIComponent(activePlan.title)}&targetPrice=${encodeURIComponent(String(storedNegotiationRuns[item.sku]?.targetPrice ?? getSuggestedTarget(item.price)))}&maxAcceptablePrice=${encodeURIComponent(String(storedNegotiationRuns[item.sku]?.maxAcceptablePrice ?? getSuggestedMax(item.price)))}`}
                               >
                                 <div className="min-w-0">
-                                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-100/75">
-                                    Agent negotiation
-                                  </p>
-                                  <p className="mt-1 text-sm font-semibold">
-                                    Open negotiation workspace
+                                  <p className="text-sm font-semibold">
+                                    Let the agent bargain
                                   </p>
                                 </div>
-                                <div className="ml-6 flex shrink-0 items-center gap-3">
+                                <div className="ml-6 flex shrink-0 items-center gap-2.5">
                                   <span
                                     className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                                       storedNegotiationRuns[item.sku]?.result?.outcome === "accepted"
@@ -397,9 +394,9 @@ export default function RecommendationsPage() {
                                         : "bg-white/14 text-sky-50"
                                     }`}
                                   >
-                                    {storedNegotiationRuns[item.sku]?.result?.outcome === "accepted" ? "Accepted" : "Set target inside"}
+                                    {storedNegotiationRuns[item.sku]?.result?.outcome === "accepted" ? "Accepted" : "Open"}
                                   </span>
-                                  <span className="text-lg leading-none text-white/90 transition group-hover:translate-x-0.5">
+                                  <span className="text-base leading-none text-white/90 transition group-hover:translate-x-0.5">
                                     ↗
                                   </span>
                                 </div>
