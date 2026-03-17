@@ -81,3 +81,16 @@ export function readNegotiationRuns(): Record<string, StoredNegotiationRun> {
 export function writeNegotiationRun(run: StoredNegotiationRun) {
   writeStorageEntry(RUN_STORAGE_KEY, run);
 }
+
+export function getLatestNegotiationRun(): StoredNegotiationRun | null {
+  const runs = Object.values(readNegotiationRuns());
+  if (runs.length === 0) {
+    return null;
+  }
+
+  return runs.sort((left, right) => {
+    const leftTime = Date.parse(left.savedAt) || 0;
+    const rightTime = Date.parse(right.savedAt) || 0;
+    return rightTime - leftTime;
+  })[0] ?? null;
+}

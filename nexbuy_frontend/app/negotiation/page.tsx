@@ -15,7 +15,12 @@ import {
   type NegotiationSession,
   type NegotiationTurn,
 } from "@/lib/negotiation-api";
-import { readNegotiationRuns, writeNegotiatedDeal, writeNegotiationRun } from "@/lib/negotiation-store";
+import {
+  getLatestNegotiationRun,
+  readNegotiationRuns,
+  writeNegotiatedDeal,
+  writeNegotiationRun,
+} from "@/lib/negotiation-store";
 import AuthModal from "@/src/components/AuthModal";
 import WorkspaceShell from "@/src/components/WorkspaceShell";
 
@@ -107,6 +112,7 @@ export default function NegotiationPage() {
   const sku = searchParams.get("sku") ?? "";
   const title = searchParams.get("title") ?? "Selected item";
   const price = searchParams.get("price");
+  const imageUrl = searchParams.get("imageUrl");
   const planId = searchParams.get("planId") ?? undefined;
   const planTitle = searchParams.get("planTitle") ?? "Recommended bundle";
   const queryTargetPrice = searchParams.get("targetPrice");
@@ -135,11 +141,20 @@ export default function NegotiationPage() {
   const streamAbortRef = useRef<AbortController | null>(null);
   const agentTurnsRef = useRef<BuyerAgentTurn[]>([]);
   const sellerSessionRef = useRef<NegotiationSession | null>(null);
+  const [fallbackRun, setFallbackRun] = useState<ReturnType<typeof getLatestNegotiationRun> | null>(null);
+
+  const resolvedSku = sku || fallbackRun?.sku || "";
+  const resolvedTitle = title !== "Selected item" ? title : fallbackRun?.title || "Selected item";
+  const resolvedPrice =
+    price ?? (typeof fallbackRun?.originalPrice === "number" ? String(fallbackRun.originalPrice) : null);
+  const resolvedPlanId = planId ?? fallbackRun?.planId;
+  const resolvedPlanTitle =
+    planTitle !== "Recommended bundle" ? planTitle : fallbackRun?.planTitle || "Recommended bundle";
 
   const priceLabel = useMemo(() => {
-    const amount = price ? Number(price) : null;
+    const amount = resolvedPrice ? Number(resolvedPrice) : null;
     return amount && Number.isFinite(amount) ? `$${amount.toLocaleString()}` : "Unknown";
-  }, [price]);
+  }, [resolvedPrice]);
 
   const acceptedPrice =
     agentResult?.outcome === "accepted" && typeof agentResult.final_price === "number"
@@ -173,11 +188,11 @@ export default function NegotiationPage() {
       result?: BuyerAgentRunResult | null;
     }) => {
       writeNegotiationRun({
-        sku,
-        title,
-        originalPrice: Number(price ?? 0),
-        planId,
-        planTitle,
+        sku: resolvedSku,
+        title: resolvedTitle,
+        originalPrice: Number(resolvedPrice ?? 0),
+        planId: resolvedPlanId,
+        planTitle: resolvedPlanTitle,
         targetPrice: Number(targetPrice) || 0,
         maxAcceptablePrice: Number(maxAcceptablePrice) || 0,
         status: params.status,
@@ -189,16 +204,23 @@ export default function NegotiationPage() {
         savedAt: new Date().toISOString(),
       });
     },
-    [maxAcceptablePrice, planId, planTitle, price, sku, targetPrice, title],
+    [maxAcceptablePrice, resolvedPlanId, resolvedPlanTitle, resolvedPrice, resolvedSku, resolvedTitle, targetPrice],
   );
 
   useEffect(() => {
-    if (!sku) {
+    if (sku) {
+      return;
+    }
+    setFallbackRun(getLatestNegotiationRun());
+  }, [sku]);
+
+  useEffect(() => {
+    if (!resolvedSku) {
       return;
     }
 
     const storedRuns = readNegotiationRuns();
-    const stored = storedRuns[sku];
+    const stored = storedRuns[resolvedSku];
     if (!stored) {
       if (queryTargetPrice) {
         setTargetPrice(queryTargetPrice);
@@ -212,15 +234,15 @@ export default function NegotiationPage() {
     setTargetPrice(String(stored.targetPrice));
     setMaxAcceptablePrice(String(stored.maxAcceptablePrice));
     applyStoredRun(stored);
-  }, [queryMaxAcceptablePrice, queryTargetPrice, sku]);
+  }, [queryMaxAcceptablePrice, queryTargetPrice, resolvedSku]);
 
   useEffect(() => {
-    if (!sku) {
+    if (!resolvedSku) {
       return;
     }
 
     const timer = window.setInterval(() => {
-      const stored = readNegotiationRuns()[sku];
+      const stored = readNegotiationRuns()[resolvedSku];
       if (!stored) {
         return;
       }
@@ -228,19 +250,19 @@ export default function NegotiationPage() {
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [sku]);
+  }, [resolvedSku]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function bootstrap() {
-      if (!sku) {
+      if (!resolvedSku) {
         setError("Missing sku for negotiation.");
         setStatus("Cannot open negotiation.");
         return;
       }
 
-      const storedRun = readNegotiationRuns()[sku];
+      const storedRun = readNegotiationRuns()[resolvedSku];
 
       if (!storedRun) {
         if (queryTargetPrice) {
@@ -249,8 +271,8 @@ export default function NegotiationPage() {
         if (queryMaxAcceptablePrice) {
           setMaxAcceptablePrice(queryMaxAcceptablePrice);
         }
-        if (!queryTargetPrice && !queryMaxAcceptablePrice && price) {
-          const numericPrice = Number(price);
+        if (!queryTargetPrice && !queryMaxAcceptablePrice && resolvedPrice) {
+          const numericPrice = Number(resolvedPrice);
           if (Number.isFinite(numericPrice) && numericPrice > 0) {
             setTargetPrice(String(Math.round(numericPrice * 0.9)));
             setMaxAcceptablePrice(String(Math.round(numericPrice * 0.95)));
@@ -278,7 +300,7 @@ export default function NegotiationPage() {
 
       try {
         const created = await createNegotiationSession({
-          skuIdDefault: sku,
+          skuIdDefault: resolvedSku,
         });
 
         if (cancelled) {
@@ -293,7 +315,7 @@ export default function NegotiationPage() {
                 {
                   id: "seller-opening",
                   role: "seller" as const,
-                  content: `I can help with ${title}. Share your target price and I will review it.`,
+                  content: `I can help with ${resolvedTitle}. Share your target price and I will review it.`,
                   meta: `List price: ${priceLabel}`,
                   label: "Seller",
                 },
@@ -321,7 +343,7 @@ export default function NegotiationPage() {
     return () => {
       cancelled = true;
     };
-  }, [price, priceLabel, queryMaxAcceptablePrice, queryTargetPrice, sku, title]);
+  }, [priceLabel, queryMaxAcceptablePrice, queryTargetPrice, resolvedPrice, resolvedSku, resolvedTitle]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -359,12 +381,12 @@ export default function NegotiationPage() {
       setManualMessages((current) => [...current, buildSellerBubble(turn)]);
       if (refreshedSession.closed && refreshedSession.accepted_price) {
         writeNegotiatedDeal({
-          sku,
-          title,
-          originalPrice: Number(price ?? 0),
+          sku: resolvedSku,
+          title: resolvedTitle,
+          originalPrice: Number(resolvedPrice ?? 0),
           negotiatedPrice: refreshedSession.accepted_price,
-          planId,
-          planTitle,
+          planId: resolvedPlanId,
+          planTitle: resolvedPlanTitle,
           acceptedAt: new Date().toISOString(),
         });
         setStatus("Deal accepted. You can go back and place the order.");
@@ -511,11 +533,11 @@ export default function NegotiationPage() {
       agentTurnsRef.current = event.result.turns;
       setStatus(event.result.summary);
       writeNegotiationRun({
-        sku,
-        title,
-        originalPrice: Number(price ?? 0),
-        planId,
-        planTitle,
+        sku: resolvedSku,
+        title: resolvedTitle,
+        originalPrice: Number(resolvedPrice ?? 0),
+        planId: resolvedPlanId,
+        planTitle: resolvedPlanTitle,
         targetPrice: event.result.target_price,
         maxAcceptablePrice: event.result.max_acceptable_price,
         status: "done",
@@ -528,12 +550,12 @@ export default function NegotiationPage() {
       });
       if (event.result.outcome === "accepted" && typeof event.result.final_price === "number") {
         writeNegotiatedDeal({
-          sku,
-          title,
-          originalPrice: Number(price ?? 0),
+          sku: resolvedSku,
+          title: resolvedTitle,
+          originalPrice: Number(resolvedPrice ?? 0),
           negotiatedPrice: event.result.final_price,
-          planId,
-          planTitle,
+          planId: resolvedPlanId,
+          planTitle: resolvedPlanTitle,
           acceptedAt: new Date().toISOString(),
         });
       }
@@ -555,13 +577,13 @@ export default function NegotiationPage() {
         progressPercent: 100,
       });
     }
-  }, [persistNegotiationRun, planId, planTitle, price, sku, title]);
+  }, [persistNegotiationRun, resolvedPlanId, resolvedPlanTitle, resolvedPrice, resolvedSku, resolvedTitle]);
 
   const handleRunBuyerAgent = useCallback(async () => {
     const parsedTarget = Number(targetPrice);
     const parsedMax = Number(maxAcceptablePrice);
     if (
-      !sku ||
+      !resolvedSku ||
       !Number.isFinite(parsedTarget) ||
       !Number.isFinite(parsedMax) ||
       parsedTarget <= 0 ||
@@ -595,7 +617,7 @@ export default function NegotiationPage() {
     try {
       await streamBuyerAgentNegotiation(
         {
-        skuIdDefault: sku,
+        skuIdDefault: resolvedSku,
         targetPrice: parsedTarget,
         maxAcceptablePrice: parsedMax,
         },
@@ -625,7 +647,7 @@ export default function NegotiationPage() {
     maxAcceptablePrice,
     persistNegotiationRun,
     session,
-    sku,
+    resolvedSku,
     targetPrice,
   ]);
 
@@ -653,11 +675,11 @@ export default function NegotiationPage() {
   }
 
   function handleViewUpdatedPackage() {
-    if (!sku || acceptedPrice == null) {
+    if (!resolvedSku || acceptedPrice == null) {
       return;
     }
-    const nextHref = planId
-      ? `/recommendations?plan=${encodeURIComponent(planId)}`
+    const nextHref = resolvedPlanId
+      ? `/recommendations?plan=${encodeURIComponent(resolvedPlanId)}`
       : "/recommendations";
     router.push(nextHref);
   }
@@ -734,7 +756,7 @@ export default function NegotiationPage() {
                     <article
                       className={`max-w-[78%] ${
                         message.pending
-                          ? "rounded-[22px] border border-dashed border-[#d6e0eb] bg-white px-4 py-3 text-[#475467]"
+                          ? "px-1 py-1 text-[#667085]"
                           : message.role === "buyer"
                             ? "rounded-[24px] bg-[#eceff3] px-4 py-3 text-[#101828]"
                             : "px-1 py-1 text-[#101828]"
@@ -865,8 +887,18 @@ export default function NegotiationPage() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#98a2b3]">
                   Current item
                 </p>
-                <h3 className="mt-2 text-lg font-bold leading-7 text-[#101828]">{title}</h3>
-                <p className="mt-2 text-sm text-[#667085]">From package: {planTitle}</p>
+                {imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    alt={resolvedTitle}
+                    className="mt-3 aspect-[4/3] w-full rounded-[22px] object-cover"
+                    src={imageUrl}
+                  />
+                ) : (
+                  <div className="mt-3 aspect-[4/3] w-full rounded-[22px] bg-[linear-gradient(135deg,#dbeafe,#f8fafc)]" />
+                )}
+                <h3 className="mt-2 text-lg font-bold leading-7 text-[#101828]">{resolvedTitle}</h3>
+                <p className="mt-2 text-sm text-[#667085]">From package: {resolvedPlanTitle}</p>
                 <div className="mt-3 rounded-[22px] border border-[#dfe7f1] bg-white px-4 py-3">
                   <p className="text-xs text-[#98a2b3]">List price</p>
                   <p className="mt-1 text-lg font-bold text-[#101828]">{priceLabel}</p>
