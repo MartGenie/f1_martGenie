@@ -573,7 +573,13 @@ export default function RecommendationsPage() {
                       </div>
 
                       <div className="mt-5 grid gap-4 md:grid-cols-2">
-                        {activePlan.items.map((item) => (
+                        {activePlan.items.map((item, index) => {
+                          const hoverPanelPositionClass =
+                            index % 2 === 1
+                              ? "md:right-[calc(100%+16px)] md:left-auto"
+                              : "md:left-[calc(100%+16px)]";
+
+                          return (
                           <div className="space-y-3" key={`${activePlan.id}-${item.sku}`}>
                             <article className="group relative flex h-full flex-col rounded-[24px] border border-[#dde5ef] bg-white p-4 shadow-[0_12px_32px_rgba(148,163,184,0.08)]">
                               <div className="mb-3 flex items-center justify-end gap-2">
@@ -637,7 +643,9 @@ export default function RecommendationsPage() {
                                 )}
                               </div>
                               {(item.description || item.categoryLabel || getSpecEntries(item.specs).length > 0) ? (
-                                <div className="pointer-events-none absolute left-[calc(100%+16px)] top-0 z-20 hidden w-[320px] rounded-[24px] border border-[#dbe5f0] bg-[linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] p-4 shadow-[0_20px_48px_rgba(15,23,42,0.14)] transition duration-200 group-hover:block xl:block xl:opacity-0 xl:group-hover:opacity-100">
+                                <div
+                                  className={`pointer-events-none absolute top-0 z-20 hidden w-[320px] rounded-[24px] border border-[#dbe5f0] bg-[linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] p-4 shadow-[0_20px_48px_rgba(15,23,42,0.14)] transition duration-200 group-hover:block xl:block xl:opacity-0 xl:group-hover:opacity-100 ${hoverPanelPositionClass}`}
+                                >
                                   <div className="flex items-start gap-3">
                                     {item.imageUrl ? (
                                       // eslint-disable-next-line @next/next/no-img-element
@@ -709,7 +717,8 @@ export default function RecommendationsPage() {
                               </Link>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </>
                   ) : null}
