@@ -383,7 +383,7 @@ export default function RecommendationsPage() {
                       <div className="mt-5 grid gap-4 md:grid-cols-2">
                         {activePlan.items.map((item) => (
                           <div className="space-y-3" key={`${activePlan.id}-${item.sku}`}>
-                            <article className="group relative flex flex-col rounded-[24px] border border-[#dde5ef] bg-white p-4 shadow-[0_12px_32px_rgba(148,163,184,0.08)]">
+                            <article className="group relative flex h-full flex-col rounded-[24px] border border-[#dde5ef] bg-white p-4 shadow-[0_12px_32px_rgba(148,163,184,0.08)]">
                               {item.imageUrl ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
@@ -394,9 +394,13 @@ export default function RecommendationsPage() {
                               ) : (
                                 <div className="aspect-[4/3] w-full rounded-[20px] bg-[linear-gradient(135deg,#dbeafe,#f8fafc)]" />
                               )}
-                              <h3 className="mt-4 text-lg font-bold text-[#101828]">{item.title}</h3>
-                              <p className="mt-2 text-sm leading-6 text-[#667085]">{item.reason}</p>
-                              <div className="mt-5 border-t border-[#e8edf4] pt-4">
+                              <h3 className="mt-4 line-clamp-3 min-h-[5.25rem] text-lg font-bold leading-7 text-[#101828]">
+                                {item.title}
+                              </h3>
+                              <p className="mt-2 line-clamp-4 min-h-[6rem] text-sm leading-6 text-[#667085]">
+                                {item.reason}
+                              </p>
+                              <div className="mt-auto border-t border-[#e8edf4] pt-4">
                                 {item.negotiatedSavings > 0 ? (
                                   <div className="space-y-1">
                                     <p className="text-[13px] font-medium text-[#98a2b3] line-through">
