@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     apple_oauth_response_mode: str = "query"
     oauth_state_secret: str = "change-this-oauth-state-secret"
     oauth_csrf_cookie_secure: bool = False
+    resend_api_key: str = ""
+    resend_api_base_url: str = "https://api.resend.com"
+    resend_from_email: str = "onboarding@resend.dev"
+    resend_reply_to: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

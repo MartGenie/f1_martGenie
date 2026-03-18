@@ -8,7 +8,9 @@ import type { PlanOption } from "@/lib/chat-api";
 import type { ChatMessage, TimelineEvent } from "@/lib/chat-contract";
 import { readNegotiatedDeals, readNegotiationRuns } from "@/lib/negotiation-store";
 import { clearCurrentOrder, setOrderCheckout } from "@/lib/order-store";
+import { shareProductByEmail } from "@/lib/share-api";
 import AuthModal from "@/src/components/AuthModal";
+import ProductShareModal from "@/src/components/ProductShareModal";
 import WorkspaceShell from "@/src/components/WorkspaceShell";
 
 type SavedWorkspaceState = {
@@ -132,6 +134,7 @@ export default function RecommendationsPage() {
   const requestedPlanId = searchParams.get("plan");
   const [authOpen, setAuthOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [shareTarget, setShareTarget] = useState<{ sku: string; title: string } | null>(null);
   const workspaceSnapshot = useSyncExternalStore(
     subscribeStorage,
     getWorkspaceSnapshot,
@@ -272,6 +275,24 @@ export default function RecommendationsPage() {
     });
     clearCurrentOrder();
     router.push("/order");
+  }
+
+  function handleOpenShare(sku: string, title: string) {
+    if (!isAuthenticated) {
+      setAuthOpen(true);
+      return;
+    }
+    setShareTarget({ sku, title });
+  }
+
+  async function handleSubmitShare(recipientEmail: string) {
+    if (!shareTarget) {
+      return;
+    }
+    await shareProductByEmail({
+      sku_id_default: shareTarget.sku,
+      recipient_email: recipientEmail,
+    });
   }
 
   return (
@@ -467,28 +488,37 @@ export default function RecommendationsPage() {
                                 </div>
                               ) : null}
                             </article>
-                            <Link
-                              className="group flex w-full items-center justify-between rounded-[18px] border border-[#cfe0f5] bg-[linear-gradient(135deg,#0f172a_0%,#172554_42%,#2563eb_100%)] px-4 py-2.5 text-white shadow-[0_16px_38px_rgba(37,99,235,0.24)] transition hover:scale-[1.01] hover:shadow-[0_20px_48px_rgba(37,99,235,0.3)]"
-                              href={`/negotiation?sku=${encodeURIComponent(item.sku)}&title=${encodeURIComponent(item.title)}&price=${encodeURIComponent(String(item.price))}&imageUrl=${encodeURIComponent(item.imageUrl ?? "")}&planId=${encodeURIComponent(activePlan.id)}&planTitle=${encodeURIComponent(activePlan.title)}&sessionId=${encodeURIComponent(workspaceState?.sessionId ?? "")}`}
-                            >
-                              <div className="min-w-0">
-                                <p className="text-sm font-semibold">Let the agent bargain</p>
-                              </div>
-                              <div className="ml-6 flex shrink-0 items-center gap-2.5">
-                                <span
-                                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                                    storedNegotiationRuns[item.sku]?.result?.outcome === "accepted"
-                                      ? "bg-white/18 text-emerald-100"
-                                      : "bg-white/14 text-sky-50"
-                                  }`}
-                                >
-                                  {storedNegotiationRuns[item.sku]?.result?.outcome === "accepted" ? "Accepted" : "Open"}
-                                </span>
-                                <span className="text-base leading-none text-white/90 transition group-hover:translate-x-0.5">
-                                  ↗
-                                </span>
-                              </div>
-                            </Link>
+                            <div className="grid grid-cols-[1fr_auto] gap-3">
+                              <Link
+                                className="group flex items-center justify-between rounded-[18px] border border-[#cfe0f5] bg-[linear-gradient(135deg,#0f172a_0%,#172554_42%,#2563eb_100%)] px-4 py-2.5 text-white shadow-[0_16px_38px_rgba(37,99,235,0.24)] transition hover:scale-[1.01] hover:shadow-[0_20px_48px_rgba(37,99,235,0.3)]"
+                                href={`/negotiation?sku=${encodeURIComponent(item.sku)}&title=${encodeURIComponent(item.title)}&price=${encodeURIComponent(String(item.price))}&imageUrl=${encodeURIComponent(item.imageUrl ?? "")}&planId=${encodeURIComponent(activePlan.id)}&planTitle=${encodeURIComponent(activePlan.title)}&sessionId=${encodeURIComponent(workspaceState?.sessionId ?? "")}`}
+                              >
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold">Let the agent bargain</p>
+                                </div>
+                                <div className="ml-6 flex shrink-0 items-center gap-2.5">
+                                  <span
+                                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                                      storedNegotiationRuns[item.sku]?.result?.outcome === "accepted"
+                                        ? "bg-white/18 text-emerald-100"
+                                        : "bg-white/14 text-sky-50"
+                                    }`}
+                                  >
+                                    {storedNegotiationRuns[item.sku]?.result?.outcome === "accepted" ? "Accepted" : "Open"}
+                                  </span>
+                                  <span className="text-base leading-none text-white/90 transition group-hover:translate-x-0.5">
+                                    ↗
+                                  </span>
+                                </div>
+                              </Link>
+                              <button
+                                className="inline-flex items-center justify-center rounded-[18px] border border-[#d4dce7] bg-white px-4 py-2.5 text-sm font-semibold text-[#344054] shadow-[0_10px_24px_rgba(148,163,184,0.1)] transition hover:-translate-y-0.5 hover:border-[#c7d2e2] hover:bg-[#f8fafc]"
+                                onClick={() => handleOpenShare(item.sku, item.title)}
+                                type="button"
+                              >
+                                Share
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -511,6 +541,12 @@ export default function RecommendationsPage() {
         }}
         onClose={() => setAuthOpen(false)}
         open={authOpen}
+      />
+      <ProductShareModal
+        onClose={() => setShareTarget(null)}
+        onSubmit={handleSubmitShare}
+        open={Boolean(shareTarget)}
+        productTitle={shareTarget?.title ?? ""}
       />
     </>
   );

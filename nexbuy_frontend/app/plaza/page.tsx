@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { clearAccessToken, fetchCurrentUser, readAccessToken } from "@/lib/auth";
 import { readAuthUserId } from "@/lib/auth";
 import { clearCurrentOrder, setOrderCheckout } from "@/lib/order-store";
+import { shareProductByEmail } from "@/lib/share-api";
 import {
   createMartGennieFeedback,
   deleteMartGennieFeedback,
@@ -21,6 +22,7 @@ import {
   type PlazaShowcaseSummary,
 } from "@/lib/plaza-api";
 import AuthModal from "@/src/components/AuthModal";
+import ProductShareModal from "@/src/components/ProductShareModal";
 import WorkspaceShell from "@/src/components/WorkspaceShell";
 
 function formatMoney(value: number, currencySymbol = "$") {
@@ -132,6 +134,7 @@ export default function PlazaPage() {
   const [likePulseId, setLikePulseId] = useState<string | null>(null);
   const [feedbackPage, setFeedbackPage] = useState(1);
   const [feedbackTotalPages, setFeedbackTotalPages] = useState(1);
+  const [shareTarget, setShareTarget] = useState<Pick<PlazaRecommendationProduct, "sku_id_default" | "title"> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -287,6 +290,27 @@ export default function PlazaPage() {
     });
     clearCurrentOrder();
     router.push("/order");
+  }
+
+  function handleOpenShare(product: PlazaRecommendationProduct) {
+    if (!isAuthenticated) {
+      setAuthOpen(true);
+      return;
+    }
+    setShareTarget({
+      sku_id_default: product.sku_id_default,
+      title: product.title,
+    });
+  }
+
+  async function handleSubmitShare(recipientEmail: string) {
+    if (!shareTarget) {
+      return;
+    }
+    await shareProductByEmail({
+      sku_id_default: shareTarget.sku_id_default,
+      recipient_email: recipientEmail,
+    });
   }
 
   async function handleSubmitFeedback() {
@@ -490,14 +514,23 @@ export default function PlazaPage() {
             ) : null}
           </div>
         </article>
-        <button
-          className="group/order relative inline-flex h-11 items-center justify-center rounded-[16px] bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-4 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.14)] transition duration-200 hover:-translate-y-0.5 hover:brightness-105 hover:shadow-[0_16px_38px_rgba(15,23,42,0.22)]"
-          onClick={() => handlePlaceProductOrder(product)}
-          type="button"
-        >
-          <span className="absolute inset-0 rounded-[16px] bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.18),transparent)] opacity-0 transition duration-300 group-hover/order:opacity-100" />
-          <span className="relative">Place order</span>
-        </button>
+        <div className="grid grid-cols-[1fr_auto] gap-3">
+          <button
+            className="group/order relative inline-flex h-11 items-center justify-center rounded-[16px] bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-4 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.14)] transition duration-200 hover:-translate-y-0.5 hover:brightness-105 hover:shadow-[0_16px_38px_rgba(15,23,42,0.22)]"
+            onClick={() => handlePlaceProductOrder(product)}
+            type="button"
+          >
+            <span className="absolute inset-0 rounded-[16px] bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.18),transparent)] opacity-0 transition duration-300 group-hover/order:opacity-100" />
+            <span className="relative">Place order</span>
+          </button>
+          <button
+            className="inline-flex h-11 items-center justify-center rounded-[16px] border border-[#d4dce7] bg-white px-4 text-sm font-semibold text-[#344054] shadow-[0_10px_24px_rgba(148,163,184,0.1)] transition hover:-translate-y-0.5 hover:border-[#c7d2e2] hover:bg-[#f8fafc]"
+            onClick={() => handleOpenShare(product)}
+            type="button"
+          >
+            Share
+          </button>
+        </div>
       </div>
     );
   }
@@ -948,6 +981,12 @@ export default function PlazaPage() {
         }}
         onClose={() => setAuthOpen(false)}
         open={authOpen}
+      />
+      <ProductShareModal
+        onClose={() => setShareTarget(null)}
+        onSubmit={handleSubmitShare}
+        open={Boolean(shareTarget)}
+        productTitle={shareTarget?.title ?? ""}
       />
     </>
   );

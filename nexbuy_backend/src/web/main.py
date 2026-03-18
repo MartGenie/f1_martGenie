@@ -18,6 +18,7 @@ from .plaza.models import ensure_plaza_feedback_schema
 from .plaza.router import router as plaza_router
 from .profile import models as _profile_models  # noqa: F401
 from .profile.router import router as profile_router
+from .share_router import router as share_router
 
 
 @asynccontextmanager
@@ -43,6 +44,7 @@ app.include_router(negotiation_router, prefix="/api")
 app.include_router(agent_negotiation_router, prefix="/api")
 app.include_router(plaza_router, prefix="/api")
 app.include_router(profile_router, prefix="/api")
+app.include_router(share_router, prefix="/api")
 
 
 @app.get("/health", tags=["system"])
