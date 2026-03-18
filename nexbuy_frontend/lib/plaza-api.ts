@@ -195,6 +195,33 @@ async function parseJsonResponse<T>(response: Response, fallbackMessage: string)
   const payload = isJson ? ((await response.json()) as unknown) : null;
 
   if (!response.ok) {
+    if (
+      payload &&
+      typeof payload === "object" &&
+      "detail" in payload &&
+      Array.isArray(payload.detail)
+    ) {
+      const message = payload.detail
+        .map((issue) => {
+          if (!issue || typeof issue !== "object") {
+            return null;
+          }
+          const path =
+            "loc" in issue && Array.isArray(issue.loc)
+              ? issue.loc.filter((part: unknown): part is string => typeof part === "string").join(" / ")
+              : "";
+          const detail =
+            "msg" in issue && typeof issue.msg === "string" ? issue.msg : fallbackMessage;
+          return path ? `${path}: ${detail}` : detail;
+        })
+        .filter((item): item is string => Boolean(item))
+        .join(" · ");
+
+      if (message) {
+        throw new Error(message);
+      }
+    }
+
     if (payload && typeof payload === "object" && "detail" in payload && typeof payload.detail === "string") {
       throw new Error(payload.detail);
     }

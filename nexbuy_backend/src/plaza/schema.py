@@ -119,7 +119,7 @@ class MartGennieFeedbackItem(BaseModel):
 
 
 class MartGennieFeedbackCreateIn(BaseModel):
-    feedback_text: str = Field(min_length=12, max_length=600)
+    feedback_text: str = Field(min_length=1, max_length=600)
     rating: int = Field(default=5, ge=1, le=5)
     image_urls: list[str] = Field(default_factory=list, max_length=4)
 
