@@ -58,6 +58,9 @@ function getOrderBasePath(source: OrderCheckoutContext["source"]) {
   if (source === "plaza") {
     return "/plaza";
   }
+  if (source === "favorites") {
+    return "/favorites";
+  }
   return "/recommendations";
 }
 
@@ -67,6 +70,9 @@ function getBackLabel(source: OrderCheckoutContext["source"]) {
   }
   if (source === "plaza") {
     return "Back to Plaza";
+  }
+  if (source === "favorites") {
+    return "Back to My Likes";
   }
   return "Back to Packages";
 }

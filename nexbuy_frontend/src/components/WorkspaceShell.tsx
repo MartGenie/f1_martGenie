@@ -292,6 +292,13 @@ export default function WorkspaceShell({
                     <div className="absolute bottom-full left-0 mb-3 w-full overflow-hidden rounded-[18px] border border-[#d7e1ec] bg-white shadow-[0_18px_40px_rgba(15,23,42,0.12)]">
                       <Link
                         className="block px-4 py-3 text-sm font-medium text-[#344054] transition hover:bg-[#f8fbff]"
+                        href="/favorites"
+                        onClick={() => setAccountMenuOpen(false)}
+                      >
+                        My likes
+                      </Link>
+                      <Link
+                        className="block px-4 py-3 text-sm font-medium text-[#344054] transition hover:bg-[#f8fbff]"
                         href="/profile"
                         onClick={() => setAccountMenuOpen(false)}
                       >

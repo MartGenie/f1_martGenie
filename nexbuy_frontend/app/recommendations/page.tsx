@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { clearAccessToken, fetchCurrentUser, readAccessToken, readAuthUserId } from "@/lib/auth";
 import type { PlanOption } from "@/lib/chat-api";
 import type { ChatMessage, TimelineEvent } from "@/lib/chat-contract";
+import { createFavoriteProduct, deleteFavoriteProduct, fetchFavoriteProducts } from "@/lib/favorites-api";
 import { readNegotiatedDeals, readNegotiationRuns } from "@/lib/negotiation-store";
 import { clearCurrentOrder, setOrderCheckout } from "@/lib/order-store";
 import { shareProductByEmail } from "@/lib/share-api";
@@ -134,6 +135,8 @@ export default function RecommendationsPage() {
   const requestedPlanId = searchParams.get("plan");
   const [authOpen, setAuthOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [favoriteSkuSet, setFavoriteSkuSet] = useState<Set<string>>(new Set());
+  const [isUpdatingFavoriteSku, setIsUpdatingFavoriteSku] = useState<string | null>(null);
   const [shareTarget, setShareTarget] = useState<{ sku: string; title: string } | null>(null);
   const workspaceSnapshot = useSyncExternalStore(
     subscribeStorage,
@@ -202,12 +205,21 @@ export default function RecommendationsPage() {
   useEffect(() => {
     const token = readAccessToken();
     if (!token) {
+      setIsAuthenticated(false);
+      setFavoriteSkuSet(new Set());
       return;
     }
 
     void fetchCurrentUser(token)
-      .then(() => setIsAuthenticated(true))
-      .catch(() => setIsAuthenticated(false));
+      .then(async () => {
+        setIsAuthenticated(true);
+        const favorites = await fetchFavoriteProducts();
+        setFavoriteSkuSet(new Set(favorites.map((item) => item.sku_id_default)));
+      })
+      .catch(() => {
+        setIsAuthenticated(false);
+        setFavoriteSkuSet(new Set());
+      });
   }, [requestedSnapshotId, workspaceState]);
 
   useEffect(() => {
@@ -295,6 +307,51 @@ export default function RecommendationsPage() {
     });
   }
 
+  async function handleToggleFavorite(item: {
+    sku: string;
+    title: string;
+    price: number;
+    imageUrl?: string | null;
+    productUrl?: string | null;
+    description?: string | null;
+    categoryLabel?: string | null;
+    reason: string;
+    specs?: Record<string, string> | null;
+  }) {
+    if (!isAuthenticated) {
+      setAuthOpen(true);
+      return;
+    }
+
+    setIsUpdatingFavoriteSku(item.sku);
+    try {
+      if (favoriteSkuSet.has(item.sku)) {
+        await deleteFavoriteProduct(item.sku);
+        setFavoriteSkuSet((current) => {
+          const next = new Set(current);
+          next.delete(item.sku);
+          return next;
+        });
+      } else {
+        await createFavoriteProduct({
+          sku_id_default: item.sku,
+          title: item.title,
+          sale_price: item.price,
+          image_url: item.imageUrl ?? null,
+          product_url: item.productUrl ?? null,
+          description_text: item.description ?? null,
+          recommendation_reason: item.reason,
+          category_label: item.categoryLabel ?? null,
+          specs: item.specs ?? {},
+          source_page: "packages",
+        });
+        setFavoriteSkuSet((current) => new Set([...current, item.sku]));
+      }
+    } finally {
+      setIsUpdatingFavoriteSku(null);
+    }
+  }
+
   return (
     <>
       <WorkspaceShell
@@ -304,6 +361,7 @@ export default function RecommendationsPage() {
         onSignOut={() => {
           clearAccessToken();
           setIsAuthenticated(false);
+          setFavoriteSkuSet(new Set());
           router.push("/");
         }}
       >
@@ -488,7 +546,7 @@ export default function RecommendationsPage() {
                                 </div>
                               ) : null}
                             </article>
-                            <div className="grid grid-cols-[1fr_auto] gap-3">
+                            <div className="grid grid-cols-[1fr_auto_auto] gap-3">
                               <Link
                                 className="group flex items-center justify-between rounded-[18px] border border-[#cfe0f5] bg-[linear-gradient(135deg,#0f172a_0%,#172554_42%,#2563eb_100%)] px-4 py-2.5 text-white shadow-[0_16px_38px_rgba(37,99,235,0.24)] transition hover:scale-[1.01] hover:shadow-[0_20px_48px_rgba(37,99,235,0.3)]"
                                 href={`/negotiation?sku=${encodeURIComponent(item.sku)}&title=${encodeURIComponent(item.title)}&price=${encodeURIComponent(String(item.price))}&imageUrl=${encodeURIComponent(item.imageUrl ?? "")}&planId=${encodeURIComponent(activePlan.id)}&planTitle=${encodeURIComponent(activePlan.title)}&sessionId=${encodeURIComponent(workspaceState?.sessionId ?? "")}`}
@@ -518,6 +576,19 @@ export default function RecommendationsPage() {
                               >
                                 Share
                               </button>
+                              <button
+                                aria-label={favoriteSkuSet.has(item.sku) ? "Remove from likes" : "Add to likes"}
+                                className={`inline-flex items-center justify-center rounded-[18px] border px-4 py-2.5 text-base font-semibold shadow-[0_10px_24px_rgba(148,163,184,0.1)] transition ${
+                                  favoriteSkuSet.has(item.sku)
+                                    ? "border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]"
+                                    : "border-[#d4dce7] bg-white text-[#344054] hover:-translate-y-0.5 hover:border-[#c7d2e2] hover:bg-[#f8fafc]"
+                                }`}
+                                disabled={isUpdatingFavoriteSku === item.sku}
+                                onClick={() => void handleToggleFavorite(item)}
+                                type="button"
+                              >
+                                ♥
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -538,6 +609,8 @@ export default function RecommendationsPage() {
           }
           await fetchCurrentUser(token);
           setIsAuthenticated(true);
+          const favorites = await fetchFavoriteProducts();
+          setFavoriteSkuSet(new Set(favorites.map((item) => item.sku_id_default)));
         }}
         onClose={() => setAuthOpen(false)}
         open={authOpen}

@@ -10,6 +10,8 @@ from .agent_negotiation_router import router as agent_negotiation_router
 from .auth.router import router as auth_router
 from .chat import models as _chat_models  # noqa: F401
 from .chat_router import router as chat_router
+from .favorites import models as _favorites_models  # noqa: F401
+from .favorites.router import router as favorites_router
 from .memory import models as _memory_models  # noqa: F401
 from .memory.models import ensure_user_profile_memory_schema
 from .memory.router import router as memory_router
@@ -41,6 +43,7 @@ app.add_middleware(
 )
 app.include_router(auth_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
+app.include_router(favorites_router, prefix="/api")
 app.include_router(memory_router, prefix="/api")
 app.include_router(negotiation_router, prefix="/api")
 app.include_router(agent_negotiation_router, prefix="/api")

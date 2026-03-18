@@ -9,7 +9,7 @@ export type OrderCheckoutItem = {
 };
 
 export type OrderCheckoutContext = {
-  source: "package" | "negotiation" | "plaza";
+  source: "package" | "negotiation" | "plaza" | "favorites";
   packageId?: string;
   packageTitle: string;
   summary?: string;

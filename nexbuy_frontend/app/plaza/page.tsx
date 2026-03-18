@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { clearAccessToken, fetchCurrentUser, readAccessToken } from "@/lib/auth";
 import { readAuthUserId } from "@/lib/auth";
+import { createFavoriteProduct, deleteFavoriteProduct, fetchFavoriteProducts } from "@/lib/favorites-api";
 import { clearCurrentOrder, setOrderCheckout } from "@/lib/order-store";
 import { shareProductByEmail } from "@/lib/share-api";
 import {
@@ -134,6 +135,8 @@ export default function PlazaPage() {
   const [likePulseId, setLikePulseId] = useState<string | null>(null);
   const [feedbackPage, setFeedbackPage] = useState(1);
   const [feedbackTotalPages, setFeedbackTotalPages] = useState(1);
+  const [favoriteSkuSet, setFavoriteSkuSet] = useState<Set<string>>(new Set());
+  const [isUpdatingFavoriteSku, setIsUpdatingFavoriteSku] = useState<string | null>(null);
   const [shareTarget, setShareTarget] = useState<Pick<PlazaRecommendationProduct, "sku_id_default" | "title"> | null>(null);
 
   useEffect(() => {
@@ -171,6 +174,16 @@ export default function PlazaPage() {
               setIsAuthenticated(true);
             }
             try {
+              const favorites = await fetchFavoriteProducts();
+              if (!cancelled) {
+                setFavoriteSkuSet(new Set(favorites.map((item) => item.sku_id_default)));
+              }
+            } catch {
+              if (!cancelled) {
+                setFavoriteSkuSet(new Set());
+              }
+            }
+            try {
               const recommendationPayload = await fetchPlazaRecommendations();
               if (!cancelled) {
                 setRecommendations(recommendationPayload);
@@ -188,12 +201,14 @@ export default function PlazaPage() {
             if (!cancelled) {
               setIsAuthenticated(false);
               setRecommendations(null);
+              setFavoriteSkuSet(new Set());
             }
           }
         } else {
           if (!cancelled) {
             setIsAuthenticated(false);
             setRecommendations(null);
+            setFavoriteSkuSet(new Set());
           }
         }
       } catch (bootstrapError) {
@@ -311,6 +326,41 @@ export default function PlazaPage() {
       sku_id_default: shareTarget.sku_id_default,
       recipient_email: recipientEmail,
     });
+  }
+
+  async function handleToggleFavorite(product: PlazaRecommendationProduct) {
+    if (!isAuthenticated) {
+      setAuthOpen(true);
+      return;
+    }
+
+    setIsUpdatingFavoriteSku(product.sku_id_default);
+    try {
+      if (favoriteSkuSet.has(product.sku_id_default)) {
+        await deleteFavoriteProduct(product.sku_id_default);
+        setFavoriteSkuSet((current) => {
+          const next = new Set(current);
+          next.delete(product.sku_id_default);
+          return next;
+        });
+      } else {
+        await createFavoriteProduct({
+          sku_id_default: product.sku_id_default,
+          title: product.title,
+          category_label: buildRecommendationCategoryLabel(product) || buildRecommendationGroupLabel(product),
+          sale_price: product.sale_price,
+          image_url: product.main_image_url,
+          product_url: product.product_url,
+          description_text: product.description_text,
+          recommendation_reason: product.recommendation_reason,
+          specs: product.specs ?? {},
+          source_page: "plaza",
+        });
+        setFavoriteSkuSet((current) => new Set([...current, product.sku_id_default]));
+      }
+    } finally {
+      setIsUpdatingFavoriteSku(null);
+    }
   }
 
   async function handleSubmitFeedback() {
@@ -514,7 +564,7 @@ export default function PlazaPage() {
             ) : null}
           </div>
         </article>
-        <div className="grid grid-cols-[1fr_auto] gap-3">
+        <div className="grid grid-cols-[1fr_auto_auto] gap-3">
           <button
             className="group/order relative inline-flex h-11 items-center justify-center rounded-[16px] bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-4 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.14)] transition duration-200 hover:-translate-y-0.5 hover:brightness-105 hover:shadow-[0_16px_38px_rgba(15,23,42,0.22)]"
             onClick={() => handlePlaceProductOrder(product)}
@@ -529,6 +579,19 @@ export default function PlazaPage() {
             type="button"
           >
             Share
+          </button>
+          <button
+            aria-label={favoriteSkuSet.has(product.sku_id_default) ? "Remove from likes" : "Add to likes"}
+            className={`inline-flex h-11 items-center justify-center rounded-[16px] border px-4 text-base font-semibold shadow-[0_10px_24px_rgba(148,163,184,0.1)] transition ${
+              favoriteSkuSet.has(product.sku_id_default)
+                ? "border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]"
+                : "border-[#d4dce7] bg-white text-[#344054] hover:-translate-y-0.5 hover:border-[#c7d2e2] hover:bg-[#f8fafc]"
+            }`}
+            disabled={isUpdatingFavoriteSku === product.sku_id_default}
+            onClick={() => void handleToggleFavorite(product)}
+            type="button"
+          >
+            ♥
           </button>
         </div>
       </div>
@@ -545,6 +608,7 @@ export default function PlazaPage() {
           clearAccessToken();
           setIsAuthenticated(false);
           setRecommendations(null);
+          setFavoriteSkuSet(new Set());
         }}
       >
         <section className="mx-auto max-w-[1380px] px-6 py-10">
@@ -977,6 +1041,12 @@ export default function PlazaPage() {
                 ? feedbackLoadError.message
                 : "Could not load user feedback.",
             );
+          }
+          try {
+            const favorites = await fetchFavoriteProducts();
+            setFavoriteSkuSet(new Set(favorites.map((item) => item.sku_id_default)));
+          } catch {
+            setFavoriteSkuSet(new Set());
           }
         }}
         onClose={() => setAuthOpen(false)}
