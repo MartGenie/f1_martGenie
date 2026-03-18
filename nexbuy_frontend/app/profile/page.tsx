@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { clearAccessToken, fetchCurrentUser, readAccessToken, type AuthUser } from "@/lib/auth";
 import {
+  buildMemoryPayloadFromAnswers,
   fetchMemoryProfile,
   fetchOnboardingQuestions,
   saveMemoryProfile,
@@ -36,10 +37,15 @@ function buildAnswersFromProfile(profile: MemoryProfilePayload | null) {
   return {
     ...(profile.raw_answers ?? {}),
     housing_type: profile.housing_type ?? "",
+    space_tier: profile.space_tier ?? "",
+    room_priorities: profile.room_priorities ?? [],
     household_members: profile.household_members ?? [],
     style_preferences: profile.style_preferences ?? [],
+    function_preferences: profile.function_preferences ?? [],
     price_philosophy: profile.price_philosophy ?? "",
-    negative_constraints: (profile.negative_constraints ?? []).join("\n"),
+    negative_constraints: profile.negative_constraints ?? [],
+    decision_priority: profile.decision_priority ?? "",
+    ...(profile.notes ? { notes_custom: profile.notes } : {}),
   } as Record<string, string | string[]>;
 }
 
@@ -161,26 +167,7 @@ export default function ProfilePage() {
     setSaveMessage("");
 
     try {
-      const negativeInput = answers.negative_constraints;
-      const negativeConstraints = Array.isArray(negativeInput)
-        ? negativeInput
-        : typeof negativeInput === "string"
-          ? negativeInput
-              .split("\n")
-              .map((item) => item.trim())
-              .filter(Boolean)
-          : [];
-
-      await saveMemoryProfile({
-        housing_type: typeof answers.housing_type === "string" ? answers.housing_type : null,
-        space_tier: null,
-        household_members: Array.isArray(answers.household_members) ? answers.household_members : [],
-        style_preferences: Array.isArray(answers.style_preferences) ? answers.style_preferences : [],
-        price_philosophy:
-          typeof answers.price_philosophy === "string" ? answers.price_philosophy : null,
-        negative_constraints: negativeConstraints,
-        raw_answers: answers,
-      });
+      await saveMemoryProfile(buildMemoryPayloadFromAnswers(answers));
 
       setSavedAnswers(answers);
       setIsEditingMemory(false);
@@ -379,6 +366,9 @@ export default function ProfilePage() {
                         hasAnyAnswer(savedAnswers) ? (
                           questions.map((question, index) => {
                             const value = savedAnswers[question.key];
+                            const customAnswer =
+                              question.custom_input_key ? savedAnswers[question.custom_input_key] : undefined;
+                            const customValue = typeof customAnswer === "string" ? customAnswer : "";
                             const displayValues = Array.isArray(value)
                               ? value.map(prettifyAnswer)
                               : typeof value === "string" && value.trim()
@@ -387,6 +377,9 @@ export default function ProfilePage() {
                                     .map((item) => item.trim())
                                     .filter(Boolean)
                                 : [];
+                            const mergedDisplayValues = customValue.trim()
+                              ? [...displayValues, ...customValue.split(/\n|,/).map((item: string) => item.trim()).filter(Boolean)]
+                              : displayValues;
 
                             return (
                               <section
@@ -400,8 +393,8 @@ export default function ProfilePage() {
                                   <div className="w-full">
                                     <p className="text-base font-semibold text-[#101828]">{question.question}</p>
                                     <div className="mt-4 flex flex-wrap gap-2">
-                                      {displayValues.length > 0 ? (
-                                        displayValues.map((item) => (
+                                      {mergedDisplayValues.length > 0 ? (
+                                        mergedDisplayValues.map((item) => (
                                           <span
                                             className="rounded-full bg-[#eef2ff] px-3 py-1.5 text-sm font-medium text-[#4338ca]"
                                             key={`${question.key}-${item}`}
@@ -439,6 +432,9 @@ export default function ProfilePage() {
                                 </div>
                                 <div>
                                   <p className="text-base font-semibold text-[#101828]">{question.question}</p>
+                                  {question.helper_text ? (
+                                    <p className="mt-2 text-sm leading-6 text-[#667085]">{question.helper_text}</p>
+                                  ) : null}
                                   <p className="mt-1 text-xs uppercase tracking-[0.18em] text-[#8b97a8]">
                                     {question.multi_select ? "Select all that apply" : "Select one option"}
                                   </p>
@@ -493,11 +489,36 @@ export default function ProfilePage() {
                                     onChange={(event) =>
                                       setAnswers((current) => ({ ...current, [question.key]: event.target.value }))
                                     }
-                                    placeholder="Add one preference or constraint per line..."
+                                    placeholder={question.placeholder ?? "Type your answer here..."}
                                     value={typeof answers[question.key] === "string" ? answers[question.key] : ""}
                                   />
                                 )}
                               </div>
+
+                              {question.allow_custom_input && question.custom_input_key ? (
+                                <div className="mt-4">
+                                  <label className="block">
+                                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8b97a8]">
+                                      {question.custom_input_label ?? "Other details"}
+                                    </span>
+                                    <textarea
+                                      className="min-h-[96px] w-full rounded-[20px] border border-[#d7dee8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 text-sm text-[#101828] outline-none transition placeholder:text-[#98a2b3] focus:border-[#93c5fd] focus:shadow-[0_0_0_4px_rgba(147,197,253,0.18)]"
+                                      onChange={(event) =>
+                                        setAnswers((current) => ({
+                                          ...current,
+                                          [question.custom_input_key as string]: event.target.value,
+                                        }))
+                                      }
+                                      placeholder={question.custom_input_placeholder ?? "Add anything else..."}
+                                      value={
+                                        typeof answers[question.custom_input_key] === "string"
+                                          ? answers[question.custom_input_key]
+                                          : ""
+                                      }
+                                    />
+                                  </label>
+                                </div>
+                              ) : null}
                             </section>
                           ))}
 

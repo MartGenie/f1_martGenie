@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import {
+  buildMemoryPayloadFromAnswers,
   fetchMemoryProfile,
   fetchOnboardingQuestions,
-  MemoryProfilePayload,
   OnboardingQuestion,
   saveMemoryProfile,
 } from "@/lib/memory-api";
 import AuthForm from "@/src/components/AuthForm";
+import MemoryQuestionStepper from "@/src/components/MemoryQuestionStepper";
 
 type Props = {
   open: boolean;
@@ -33,15 +34,6 @@ export default function AuthModal({ open, onClose, onAuthSuccess }: Props) {
     }
   }, [open]);
 
-  function setMultiValue(questionKey: string, value: string, checked: boolean) {
-    setAnswers((current) => {
-      const prev = current[questionKey];
-      const arr = Array.isArray(prev) ? [...prev] : [];
-      const next = checked ? Array.from(new Set([...arr, value])) : arr.filter((v) => v !== value);
-      return { ...current, [questionKey]: next };
-    });
-  }
-
   async function handleAuthenticated() {
     const memory = await fetchMemoryProfile();
 
@@ -63,28 +55,7 @@ export default function AuthModal({ open, onClose, onAuthSuccess }: Props) {
     setOnboardingError("");
 
     try {
-      const negativeInput = answers.negative_constraints;
-      const negativeConstraints = Array.isArray(negativeInput)
-        ? negativeInput
-        : typeof negativeInput === "string"
-          ? negativeInput
-              .split("\n")
-              .map((item) => item.trim())
-              .filter(Boolean)
-          : [];
-
-      const payload: MemoryProfilePayload = {
-        housing_type: typeof answers.housing_type === "string" ? answers.housing_type : null,
-        space_tier: null,
-        household_members: Array.isArray(answers.household_members) ? answers.household_members : [],
-        style_preferences: Array.isArray(answers.style_preferences) ? answers.style_preferences : [],
-        price_philosophy:
-          typeof answers.price_philosophy === "string" ? answers.price_philosophy : null,
-        negative_constraints: negativeConstraints,
-        raw_answers: answers,
-      };
-
-      await saveMemoryProfile(payload);
+      await saveMemoryProfile(buildMemoryPayloadFromAnswers(answers));
       await onAuthSuccess?.();
       onClose();
     } catch (error) {
@@ -151,131 +122,23 @@ export default function AuthModal({ open, onClose, onAuthSuccess }: Props) {
                 </div>
               </aside>
 
-              <section className="relative bg-[linear-gradient(180deg,#fbfcfe_0%,#f3f6fa_100%)]">
-                <div className="border-b border-[#e1e7ef] px-6 py-5 md:px-8">
-                  <p className="text-sm font-semibold text-[#101828]">Your shopping profile</p>
-                  <p className="mt-1 text-sm text-[#667085]">
-                    Pick the options that sound like you. You can refine them later.
-                  </p>
-                </div>
-
-                <div className="custom-onboarding-scroll max-h-[540px] overflow-y-auto px-6 py-6 md:px-8">
-                  <div className="space-y-4">
-                    {questions.map((question, index) => (
-                      <section
-                        className="rounded-[28px] border border-[#dde5ef] bg-white/88 p-5 shadow-[0_16px_40px_rgba(148,163,184,0.1)] backdrop-blur-sm"
-                        key={question.key}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,#dbeafe_0%,#bfdbfe_100%)] text-sm font-bold text-[#1d4ed8]">
-                            {index + 1}
-                          </div>
-                          <div>
-                            <p className="text-base font-semibold text-[#101828]">{question.question}</p>
-                            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-[#8b97a8]">
-                              {question.multi_select ? "Select all that apply" : "Select one option"}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mt-4">
-                          {question.type === "choice" ? (
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              {question.options.map((option) => {
-                                const checked = question.multi_select
-                                  ? Array.isArray(answers[question.key]) &&
-                                    answers[question.key].includes(option)
-                                  : answers[question.key] === option;
-
-                                return (
-                                  <label
-                                    className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition ${
-                                      checked
-                                        ? "border-[#93c5fd] bg-[linear-gradient(180deg,#eff6ff_0%,#dbeafe_100%)] text-[#1d4ed8] shadow-[0_12px_28px_rgba(59,130,246,0.12)]"
-                                        : "border-[#dbe3ed] bg-[#f8fafc] text-[#475467] hover:border-[#c7d2e2] hover:bg-white"
-                                    }`}
-                                    key={option}
-                                  >
-                                    <span
-                                      className={`flex h-5 w-5 items-center justify-center rounded-full border text-[11px] ${
-                                        checked
-                                          ? "border-[#60a5fa] bg-[#2563eb] text-white"
-                                          : "border-[#c5d0dd] bg-white text-transparent"
-                                      }`}
-                                    >
-                                      ✓
-                                    </span>
-                                    <input
-                                      checked={checked}
-                                      className="sr-only"
-                                      name={question.key}
-                                      onChange={(event) =>
-                                        question.multi_select
-                                          ? setMultiValue(question.key, option, event.target.checked)
-                                          : setAnswers((current) => ({ ...current, [question.key]: option }))
-                                      }
-                                      type={question.multi_select ? "checkbox" : "radio"}
-                                    />
-                                    <span>{option}</span>
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <textarea
-                              className="min-h-[128px] w-full rounded-[24px] border border-[#d7dee8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 text-sm text-[#101828] outline-none transition placeholder:text-[#98a2b3] focus:border-[#93c5fd] focus:shadow-[0_0_0_4px_rgba(147,197,253,0.18)]"
-                              onChange={(event) =>
-                                setAnswers((current) => ({ ...current, [question.key]: event.target.value }))
-                              }
-                              placeholder="Add one preference or constraint per line..."
-                              value={typeof answers[question.key] === "string" ? answers[question.key] : ""}
-                            />
-                          )}
-                        </div>
-                      </section>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border-t border-[#e1e7ef] bg-white/70 px-6 py-5 md:px-8">
-                  {onboardingError ? <p className="mb-3 text-sm text-[#c24157]">{onboardingError}</p> : null}
-                  <div className="flex items-center justify-between gap-4">
-                    <p className="text-sm text-[#667085]">
-                      Your answers will be saved to personalize future shopping sessions.
-                    </p>
-                    <button
-                      className="h-[52px] shrink-0 rounded-2xl bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-5 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.22)] transition hover:brightness-105 disabled:opacity-60"
-                      disabled={isSavingOnboarding}
-                      onClick={handleSubmitOnboarding}
-                      type="button"
-                    >
-                      {isSavingOnboarding ? "Saving..." : "Save and continue"}
-                    </button>
-                  </div>
-                </div>
+              <section className="relative bg-[linear-gradient(180deg,#fbfcfe_0%,#f3f6fa_100%)] px-6 py-6 md:px-8">
+                <MemoryQuestionStepper
+                  answers={answers}
+                  description="We will save these answers as your long-term shopping memory so future recommendations feel more personal from the first message."
+                  error={onboardingError}
+                  isSaving={isSavingOnboarding}
+                  onChangeAnswers={(updater) => setAnswers((current) => updater(current))}
+                  onSubmit={handleSubmitOnboarding}
+                  questions={questions}
+                  title="Your shopping profile"
+                />
               </section>
             </div>
           </div>
         ) : (
           <AuthForm onSuccess={handleAuthenticated} />
         )}
-
-        <style jsx global>{`
-          .custom-onboarding-scroll::-webkit-scrollbar {
-            width: 10px;
-          }
-
-          .custom-onboarding-scroll::-webkit-scrollbar-track {
-            background: rgba(226, 232, 240, 0.5);
-            border-radius: 999px;
-          }
-
-          .custom-onboarding-scroll::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, rgba(148, 163, 184, 0.9), rgba(100, 116, 139, 0.9));
-            border-radius: 999px;
-            border: 2px solid rgba(248, 250, 252, 0.9);
-          }
-        `}</style>
       </div>
     </div>
   );

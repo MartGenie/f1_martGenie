@@ -18,12 +18,14 @@ import {
   type TimelineEvent,
 } from "@/lib/chat-api";
 import {
+  buildMemoryPayloadFromAnswers,
   fetchMemoryProfile,
   fetchOnboardingQuestions,
   saveMemoryProfile,
   type OnboardingQuestion,
 } from "@/lib/memory-api";
 import AuthModal from "@/src/components/AuthModal";
+import MemoryQuestionStepper from "@/src/components/MemoryQuestionStepper";
 import WorkspaceShell from "@/src/components/WorkspaceShell";
 
 type FriendlyEvent = {
@@ -724,50 +726,11 @@ export default function ChatWorkspacePage() {
     setDraftAttachments((current) => current.filter((item) => item.id !== attachmentId));
   }
 
-  function setOnboardingMultiValue(questionKey: string, value: string, checked: boolean) {
-    setOnboardingAnswers((current) => {
-      const prev = current[questionKey];
-      const arr = Array.isArray(prev) ? [...prev] : [];
-      const next = checked ? Array.from(new Set([...arr, value])) : arr.filter((v) => v !== value);
-      return { ...current, [questionKey]: next };
-    });
-  }
-
   async function handleSubmitOnboarding() {
     setIsSavingOnboarding(true);
     setError("");
     try {
-      const housingType =
-        typeof onboardingAnswers.housing_type === "string"
-          ? onboardingAnswers.housing_type
-          : null;
-
-      const negativeInput = onboardingAnswers.negative_constraints;
-      const negativeConstraints = Array.isArray(negativeInput)
-        ? negativeInput
-        : typeof negativeInput === "string"
-          ? negativeInput
-              .split("\n")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : [];
-
-      await saveMemoryProfile({
-        housing_type: housingType,
-        space_tier: null,
-        household_members: Array.isArray(onboardingAnswers.household_members)
-          ? onboardingAnswers.household_members
-          : [],
-        style_preferences: Array.isArray(onboardingAnswers.style_preferences)
-          ? onboardingAnswers.style_preferences
-          : [],
-        price_philosophy:
-          typeof onboardingAnswers.price_philosophy === "string"
-            ? onboardingAnswers.price_philosophy
-            : null,
-        negative_constraints: negativeConstraints,
-        raw_answers: onboardingAnswers,
-      });
+      await saveMemoryProfile(buildMemoryPayloadFromAnswers(onboardingAnswers));
 
       const createdSessionId = await createChatSession();
       setSessionId(createdSessionId);
@@ -1140,69 +1103,17 @@ export default function ChatWorkspacePage() {
       </div>
       {showOnboarding ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-5">
-            <h3 className="text-xl font-semibold text-slate-900">Welcome Setup</h3>
-            <p className="mt-1 text-sm text-slate-600">
-              Please answer these questions once. We will use them as your long-term preference memory.
-            </p>
-            <div className="mt-4 space-y-4">
-              {onboardingQuestions.map((q, index) => (
-                <section className="rounded-xl border border-slate-200 p-3" key={q.key}>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {index + 1}. {q.question}
-                  </p>
-                  <div className="mt-2 space-y-2">
-                    {q.type === "choice" ? (
-                      q.multi_select ? (
-                        q.options.map((opt) => (
-                          <label className="flex items-center gap-2 text-sm text-slate-700" key={opt}>
-                            <input
-                              checked={
-                                Array.isArray(onboardingAnswers[q.key])
-                                  ? onboardingAnswers[q.key].includes(opt)
-                                  : false
-                              }
-                              onChange={(e) => setOnboardingMultiValue(q.key, opt, e.target.checked)}
-                              type="checkbox"
-                            />
-                            <span>{opt}</span>
-                          </label>
-                        ))
-                      ) : (
-                        q.options.map((opt) => (
-                          <label className="flex items-center gap-2 text-sm text-slate-700" key={opt}>
-                            <input
-                              checked={onboardingAnswers[q.key] === opt}
-                              name={q.key}
-                              onChange={() => setOnboardingAnswers((c) => ({ ...c, [q.key]: opt }))}
-                              type="radio"
-                            />
-                            <span>{opt}</span>
-                          </label>
-                        ))
-                      )
-                    ) : (
-                      <textarea
-                        className="min-h-[88px] w-full rounded-lg border border-slate-300 p-2 text-sm outline-none focus:border-[#2f6fa3]"
-                        onChange={(e) => setOnboardingAnswers((c) => ({ ...c, [q.key]: e.target.value }))}
-                        placeholder="One point per line..."
-                        value={typeof onboardingAnswers[q.key] === "string" ? onboardingAnswers[q.key] : ""}
-                      />
-                    )}
-                  </div>
-                </section>
-              ))}
-            </div>
-            <div className="mt-4 flex justify-end">
-              <button
-                className="rounded-xl bg-[#2f6fa3] px-4 py-2 text-sm font-semibold text-white disabled:bg-[#9cb6cd]"
-                disabled={isSavingOnboarding}
-                onClick={handleSubmitOnboarding}
-                type="button"
-              >
-                {isSavingOnboarding ? "Saving..." : "Save and continue"}
-              </button>
-            </div>
+          <div className="w-full max-w-4xl">
+            <MemoryQuestionStepper
+              answers={onboardingAnswers}
+              description="Answer these once and MartGennie will use them as your long-term memory for future recommendations."
+              error={error}
+              isSaving={isSavingOnboarding}
+              onChangeAnswers={(updater) => setOnboardingAnswers((current) => updater(current))}
+              onSubmit={handleSubmitOnboarding}
+              questions={onboardingQuestions}
+              title="Welcome setup"
+            />
           </div>
         </div>
       ) : null}

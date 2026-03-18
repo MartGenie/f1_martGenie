@@ -1,8 +1,9 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.web.auth.models import Base
@@ -25,6 +26,7 @@ class UserProfileMemory(Base):
     room_priorities: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
     function_preferences: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    decision_priority: Mapped[str | None] = mapped_column(String(64), nullable=True)
     raw_answers: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
     version: Mapped[int] = mapped_column(default=1, nullable=False)
     updated_at: Mapped[Any] = mapped_column(
@@ -32,4 +34,13 @@ class UserProfileMemory(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+
+
+async def ensure_user_profile_memory_schema(connection: AsyncConnection) -> None:
+    await connection.execute(
+        text(
+            "ALTER TABLE user_profile_memory "
+            "ADD COLUMN IF NOT EXISTS decision_priority VARCHAR(64)"
+        )
     )

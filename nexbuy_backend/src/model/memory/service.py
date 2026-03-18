@@ -41,6 +41,7 @@ def normalize_payload(payload: UserProfileMemoryPayload) -> UserProfileMemoryPay
         room_priorities=_clean_list(payload.room_priorities),
         function_preferences=_clean_list(payload.function_preferences),
         notes=_clean_scalar(payload.notes),
+        decision_priority=_clean_scalar(payload.decision_priority),
         raw_answers=payload.raw_answers or {},
     )
 
@@ -56,6 +57,7 @@ def _to_payload(model: UserProfileMemory) -> UserProfileMemoryPayload:
         room_priorities=list(model.room_priorities or []),
         function_preferences=list(model.function_preferences or []),
         notes=model.notes,
+        decision_priority=model.decision_priority,
         raw_answers=dict(model.raw_answers or {}),
     )
 
@@ -90,6 +92,7 @@ async def upsert_profile(
             room_priorities=normalized.room_priorities,
             function_preferences=normalized.function_preferences,
             notes=normalized.notes,
+            decision_priority=normalized.decision_priority,
             raw_answers=normalized.raw_answers,
             version=1,
         )
@@ -104,6 +107,7 @@ async def upsert_profile(
         row.room_priorities = normalized.room_priorities
         row.function_preferences = normalized.function_preferences
         row.notes = normalized.notes
+        row.decision_priority = normalized.decision_priority
         row.raw_answers = normalized.raw_answers
         row.version = int(row.version) + 1
 

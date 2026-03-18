@@ -13,6 +13,7 @@ class UserProfileMemoryPayload(BaseModel):
     room_priorities: list[str] = Field(default_factory=list)
     function_preferences: list[str] = Field(default_factory=list)
     notes: str | None = None
+    decision_priority: str | None = None
     raw_answers: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -27,3 +28,9 @@ class OnboardingQuestion(BaseModel):
     type: str
     options: list[str] = Field(default_factory=list)
     multi_select: bool = False
+    helper_text: str | None = None
+    placeholder: str | None = None
+    allow_custom_input: bool = False
+    custom_input_key: str | None = None
+    custom_input_label: str | None = None
+    custom_input_placeholder: str | None = None

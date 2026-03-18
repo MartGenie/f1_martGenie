@@ -11,6 +11,7 @@ from .auth.router import router as auth_router
 from .chat import models as _chat_models  # noqa: F401
 from .chat_router import router as chat_router
 from .memory import models as _memory_models  # noqa: F401
+from .memory.models import ensure_user_profile_memory_schema
 from .memory.router import router as memory_router
 from .negotiation_router import router as negotiation_router
 from .plaza import models as _plaza_models  # noqa: F401
@@ -25,6 +26,7 @@ from .share_router import router as share_router
 async def lifespan(_: FastAPI):
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+        await ensure_user_profile_memory_schema(connection)
         await ensure_plaza_feedback_schema(connection)
     yield
 
