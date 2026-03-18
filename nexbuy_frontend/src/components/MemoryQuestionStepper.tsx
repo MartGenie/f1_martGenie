@@ -54,6 +54,7 @@ export default function MemoryQuestionStepper({
     () => (questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0),
     [currentIndex, questions.length],
   );
+  const progressLabel = `${Math.round(progress)}%`;
 
   function setMultiValue(questionKey: string, value: string, checked: boolean) {
     onChangeAnswers((current) => {
@@ -85,17 +86,17 @@ export default function MemoryQuestionStepper({
   const canProceed = hasCurrentAnswer(currentQuestion, answers);
 
   return (
-    <div className="rounded-[30px] border border-[#dde5ef] bg-[linear-gradient(180deg,#ffffff_0%,#f7fafd_100%)] p-6 shadow-[0_20px_60px_rgba(148,163,184,0.12)]">
+    <div className="mx-auto w-full max-w-[720px] rounded-[28px] border border-[#dde5ef] bg-[linear-gradient(180deg,#ffffff_0%,#f7fafd_100%)] p-4 shadow-[0_16px_44px_rgba(148,163,184,0.1)] md:p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#7c8da5]">
-            Long-term memory
+            Welcome
           </p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em] text-[#101828]">{title}</h3>
-          <p className="mt-2 max-w-2xl text-sm leading-7 text-[#667085]">{description}</p>
+          <h3 className="mt-2 text-[1.75rem] font-black tracking-[-0.04em] text-[#101828]">{title}</h3>
+          <p className="mt-2 max-w-xl text-sm leading-7 text-[#667085]">{description}</p>
         </div>
         <div className="rounded-full border border-[#dce5ef] bg-white px-3 py-1 text-xs font-semibold text-[#486480]">
-          {currentIndex + 1} / {questions.length}
+          {progressLabel}
         </div>
       </div>
 
@@ -106,11 +107,11 @@ export default function MemoryQuestionStepper({
         />
       </div>
 
-      <section className="mt-6 rounded-[28px] border border-[#e5ebf2] bg-white/90 p-5">
+      <section className="mt-5 rounded-[24px] border border-[#e5ebf2] bg-white/90 p-4 md:p-5">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#8b97a5]">
           Question {currentIndex + 1}
         </p>
-        <h4 className="mt-3 text-xl font-bold leading-8 text-[#101828]">{currentQuestion.question}</h4>
+        <h4 className="mt-3 text-lg font-bold leading-8 text-[#101828]">{currentQuestion.question}</h4>
         {currentQuestion.helper_text ? (
           <p className="mt-3 text-sm leading-7 text-[#667085]">{currentQuestion.helper_text}</p>
         ) : null}
@@ -125,7 +126,7 @@ export default function MemoryQuestionStepper({
 
                 return (
                   <label
-                    className={`flex cursor-pointer items-center gap-3 rounded-[20px] border px-4 py-3 text-sm font-medium transition ${
+                    className={`flex cursor-pointer items-center gap-3 rounded-[18px] border px-4 py-3 text-sm font-medium transition ${
                       checked
                         ? "border-[#93c5fd] bg-[linear-gradient(180deg,#eff6ff_0%,#dbeafe_100%)] text-[#1d4ed8] shadow-[0_12px_28px_rgba(59,130,246,0.12)]"
                         : "border-[#dbe3ed] bg-[#f8fafc] text-[#475467] hover:border-[#c7d2e2] hover:bg-white"
@@ -159,7 +160,7 @@ export default function MemoryQuestionStepper({
             </div>
           ) : (
             <textarea
-              className="min-h-[140px] w-full rounded-[22px] border border-[#d7dee8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 text-sm text-[#101828] outline-none transition placeholder:text-[#98a2b3] focus:border-[#93c5fd] focus:shadow-[0_0_0_4px_rgba(147,197,253,0.18)]"
+              className="min-h-[120px] w-full rounded-[18px] border border-[#d7dee8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 text-sm text-[#101828] outline-none transition placeholder:text-[#98a2b3] focus:border-[#93c5fd] focus:shadow-[0_0_0_4px_rgba(147,197,253,0.18)]"
               onChange={(event) =>
                 onChangeAnswers((current) => ({ ...current, [currentQuestion.key]: event.target.value }))
               }
@@ -176,7 +177,7 @@ export default function MemoryQuestionStepper({
                 {currentQuestion.custom_input_label ?? "Other details"}
               </span>
               <textarea
-                className="min-h-[96px] w-full rounded-[20px] border border-[#d7dee8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 text-sm text-[#101828] outline-none transition placeholder:text-[#98a2b3] focus:border-[#93c5fd] focus:shadow-[0_0_0_4px_rgba(147,197,253,0.18)]"
+                className="min-h-[88px] w-full rounded-[18px] border border-[#d7dee8] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 text-sm text-[#101828] outline-none transition placeholder:text-[#98a2b3] focus:border-[#93c5fd] focus:shadow-[0_0_0_4px_rgba(147,197,253,0.18)]"
                 onChange={(event) =>
                   onChangeAnswers((current) => ({
                     ...current,
