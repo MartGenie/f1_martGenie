@@ -2,7 +2,12 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { clearAccessToken, fetchCurrentUser, readAccessToken } from "@/lib/auth";
+import {
+  clearAccessToken,
+  fetchCurrentUser,
+  isUnauthorizedAuthError,
+  readAccessToken,
+} from "@/lib/auth";
 import {
   createChatSession,
   fetchChatSessionDump,
@@ -342,6 +347,20 @@ export default function ChatWorkspacePage() {
         if (cancelled) {
           return;
         }
+        if (isUnauthorizedAuthError(sessionError)) {
+          clearAccessToken();
+          clearSavedWorkspace();
+          setIsAuthenticated(false);
+          setSessionId(null);
+          setMessages([]);
+          setTimeline([]);
+          setPlans([]);
+          setPackageSnapshots({});
+          setActivePlanId(null);
+          setError("Sign in to start the conversation.");
+          setStatus("Sign in to start your shopping workspace.");
+          return;
+        }
         setError(sessionError instanceof Error ? sessionError.message : "Could not restore chat session.");
       });
 
@@ -462,6 +481,11 @@ export default function ChatWorkspacePage() {
       } catch (bootstrapError) {
         clearAccessToken();
         setIsAuthenticated(false);
+        if (isUnauthorizedAuthError(bootstrapError)) {
+          setError("Sign in to start the conversation.");
+          setStatus("Sign in to start your shopping workspace.");
+          return;
+        }
         const message =
           bootstrapError instanceof Error
             ? bootstrapError.message
