@@ -6,7 +6,14 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { clearAccessToken, fetchCurrentUser, readAccessToken, readAuthUserId } from "@/lib/auth";
 import type { PlanOption } from "@/lib/chat-api";
 import type { ChatMessage, TimelineEvent } from "@/lib/chat-contract";
-import { createFavoriteProduct, deleteFavoriteProduct, fetchFavoriteProducts } from "@/lib/favorites-api";
+import {
+  createFavoriteBundle,
+  createFavoriteProduct,
+  deleteFavoriteBundle,
+  deleteFavoriteProduct,
+  fetchFavoriteBundles,
+  fetchFavoriteProducts,
+} from "@/lib/favorites-api";
 import { readNegotiatedDeals, readNegotiationRuns } from "@/lib/negotiation-store";
 import { clearCurrentOrder, setOrderCheckout } from "@/lib/order-store";
 import { shareProductByEmail } from "@/lib/share-api";
@@ -135,8 +142,10 @@ export default function RecommendationsPage() {
   const requestedPlanId = searchParams.get("plan");
   const [authOpen, setAuthOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [favoriteBundleIdSet, setFavoriteBundleIdSet] = useState<Set<string>>(new Set());
   const [favoriteSkuSet, setFavoriteSkuSet] = useState<Set<string>>(new Set());
   const [isUpdatingFavoriteSku, setIsUpdatingFavoriteSku] = useState<string | null>(null);
+  const [isUpdatingFavoriteBundleId, setIsUpdatingFavoriteBundleId] = useState<string | null>(null);
   const [shareTarget, setShareTarget] = useState<{ sku: string; title: string } | null>(null);
   const workspaceSnapshot = useSyncExternalStore(
     subscribeStorage,
@@ -207,18 +216,21 @@ export default function RecommendationsPage() {
     if (!token) {
       setIsAuthenticated(false);
       setFavoriteSkuSet(new Set());
+      setFavoriteBundleIdSet(new Set());
       return;
     }
 
     void fetchCurrentUser(token)
       .then(async () => {
         setIsAuthenticated(true);
-        const favorites = await fetchFavoriteProducts();
-        setFavoriteSkuSet(new Set(favorites.map((item) => item.sku_id_default)));
+        const [favoriteProducts, favoriteBundles] = await Promise.all([fetchFavoriteProducts(), fetchFavoriteBundles()]);
+        setFavoriteSkuSet(new Set(favoriteProducts.map((item) => item.sku_id_default)));
+        setFavoriteBundleIdSet(new Set(favoriteBundles.map((item) => item.bundle_id)));
       })
       .catch(() => {
         setIsAuthenticated(false);
         setFavoriteSkuSet(new Set());
+        setFavoriteBundleIdSet(new Set());
       });
   }, [requestedSnapshotId, workspaceState]);
 
@@ -352,6 +364,45 @@ export default function RecommendationsPage() {
     }
   }
 
+  async function handleToggleFavoriteBundle(plan: (typeof displayedPlans)[number]) {
+    if (!isAuthenticated) {
+      setAuthOpen(true);
+      return;
+    }
+
+    setIsUpdatingFavoriteBundleId(plan.id);
+    try {
+      if (favoriteBundleIdSet.has(plan.id)) {
+        await deleteFavoriteBundle(plan.id);
+        setFavoriteBundleIdSet((current) => {
+          const next = new Set(current);
+          next.delete(plan.id);
+          return next;
+        });
+      } else {
+        await createFavoriteBundle({
+          bundle_id: plan.id,
+          title: plan.title,
+          summary: plan.explanation || plan.summary,
+          total_price: plan.totalPrice,
+          source_session_id: workspaceState?.sessionId ?? null,
+          source_page: "packages",
+          items: plan.items.map((item) => ({
+            sku: item.sku,
+            title: item.title,
+            price: item.price,
+            quantity: 1,
+            imageUrl: item.imageUrl ?? null,
+            categoryLabel: item.categoryLabel ?? null,
+          })),
+        });
+        setFavoriteBundleIdSet((current) => new Set([...current, plan.id]));
+      }
+    } finally {
+      setIsUpdatingFavoriteBundleId(null);
+    }
+  }
+
   return (
     <>
       <WorkspaceShell
@@ -362,6 +413,7 @@ export default function RecommendationsPage() {
           clearAccessToken();
           setIsAuthenticated(false);
           setFavoriteSkuSet(new Set());
+          setFavoriteBundleIdSet(new Set());
           router.push("/");
         }}
       >
@@ -400,38 +452,48 @@ export default function RecommendationsPage() {
                       0,
                     );
                     return (
-                      <button
+                      <div
                         className={`w-full rounded-[28px] border p-5 text-left transition ${
                           isActive
                             ? "border-[#bfdbfe] bg-[linear-gradient(180deg,#eff6ff_0%,#dbeafe_100%)] shadow-[0_18px_50px_rgba(59,130,246,0.12)]"
                             : "border-[#dde5ef] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] hover:border-[#cfd8e4] hover:shadow-[0_14px_36px_rgba(148,163,184,0.12)]"
                         }`}
                         key={plan.id}
-                        onClick={() => setSelectedPlanId(plan.id)}
-                        type="button"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8b97a8]">
                               {isActive ? "Selected package" : "Package option"}
                             </p>
-                            <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-[#101828]">
-                              {plan.title}
-                            </h2>
+                            <button className="mt-2 block text-left" onClick={() => setSelectedPlanId(plan.id)} type="button">
+                              <h2 className="text-2xl font-black tracking-[-0.04em] text-[#101828]">{plan.title}</h2>
+                            </button>
                           </div>
+                          <button
+                            aria-label={favoriteBundleIdSet.has(plan.id) ? "Remove bundle from likes" : "Add bundle to likes"}
+                            className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-[18px] transition ${
+                              favoriteBundleIdSet.has(plan.id) ? "text-[#dc2626]" : "text-[#111827]"
+                            }`}
+                            disabled={isUpdatingFavoriteBundleId === plan.id}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handleToggleFavoriteBundle(plan);
+                            }}
+                            type="button"
+                          >
+                            <span aria-hidden="true">{favoriteBundleIdSet.has(plan.id) ? "♥" : "♡"}</span>
+                          </button>
                         </div>
-                        <p className="mt-3 text-sm font-medium leading-7 text-[#344054]">
-                          {plan.explanation || plan.summary}
-                        </p>
-                        <p className="mt-4 text-3xl font-black text-[#101828]">
-                          ${plan.totalPrice.toLocaleString()}
-                        </p>
-                        {planSavings > 0 ? (
-                          <p className="mt-2 text-sm font-semibold text-emerald-600">
-                            Negotiated savings: ${planSavings.toLocaleString()}
-                          </p>
-                        ) : null}
-                      </button>
+                        <button className="mt-3 block w-full text-left" onClick={() => setSelectedPlanId(plan.id)} type="button">
+                          <p className="text-sm font-medium leading-7 text-[#344054]">{plan.explanation || plan.summary}</p>
+                          <p className="mt-4 text-3xl font-black text-[#101828]">${plan.totalPrice.toLocaleString()}</p>
+                          {planSavings > 0 ? (
+                            <p className="mt-2 text-sm font-semibold text-emerald-600">
+                              Negotiated savings: ${planSavings.toLocaleString()}
+                            </p>
+                          ) : null}
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -617,8 +679,9 @@ export default function RecommendationsPage() {
           }
           await fetchCurrentUser(token);
           setIsAuthenticated(true);
-          const favorites = await fetchFavoriteProducts();
-          setFavoriteSkuSet(new Set(favorites.map((item) => item.sku_id_default)));
+          const [favoriteProducts, favoriteBundles] = await Promise.all([fetchFavoriteProducts(), fetchFavoriteBundles()]);
+          setFavoriteSkuSet(new Set(favoriteProducts.map((item) => item.sku_id_default)));
+          setFavoriteBundleIdSet(new Set(favoriteBundles.map((item) => item.bundle_id)));
         }}
         onClose={() => setAuthOpen(false)}
         open={authOpen}

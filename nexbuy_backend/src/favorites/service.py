@@ -1,12 +1,19 @@
 from sqlalchemy import Select, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.favorites.schema import FavoriteProductCreateIn, FavoriteProductItem, FavoriteProductListOut
+from src.favorites.schema import (
+    FavoriteBundleCreateIn,
+    FavoriteBundleItem,
+    FavoriteBundleListOut,
+    FavoriteProductCreateIn,
+    FavoriteProductItem,
+    FavoriteProductListOut,
+)
 from src.web.auth.models import User
-from src.web.favorites.models import FavoriteProductRecord
+from src.web.favorites.models import FavoriteBundleRecord, FavoriteProductRecord
 
 
-def _to_item(record: FavoriteProductRecord) -> FavoriteProductItem:
+def _to_product_item(record: FavoriteProductRecord) -> FavoriteProductItem:
     return FavoriteProductItem(
         id=record.id,
         sku_id_default=record.sku_id_default,
@@ -23,13 +30,46 @@ def _to_item(record: FavoriteProductRecord) -> FavoriteProductItem:
     )
 
 
-def _base_stmt(user: User) -> Select[tuple[FavoriteProductRecord]]:
+def _to_bundle_item(record: FavoriteBundleRecord) -> FavoriteBundleItem:
+    normalized_items: list[dict[str, object]] = []
+    for raw_item in record.items or []:
+        if not isinstance(raw_item, dict):
+            continue
+        normalized_items.append(
+            {
+                "sku": str(raw_item.get("sku") or ""),
+                "title": str(raw_item.get("title") or ""),
+                "price": float(raw_item.get("price") or 0),
+                "quantity": int(raw_item.get("quantity") or 1),
+                "imageUrl": raw_item.get("imageUrl") if isinstance(raw_item.get("imageUrl"), str) else None,
+                "categoryLabel": raw_item.get("categoryLabel") if isinstance(raw_item.get("categoryLabel"), str) else None,
+            }
+        )
+
+    return FavoriteBundleItem(
+        id=record.id,
+        bundle_id=record.bundle_id,
+        title=record.title,
+        summary=record.summary,
+        total_price=float(record.total_price) if record.total_price is not None else None,
+        source_session_id=record.source_session_id,
+        source_page=record.source_page,
+        items=normalized_items,
+        created_at=record.created_at,
+    )
+
+
+def _product_stmt(user: User) -> Select[tuple[FavoriteProductRecord]]:
     return select(FavoriteProductRecord).where(FavoriteProductRecord.user_id == user.id)
 
 
+def _bundle_stmt(user: User) -> Select[tuple[FavoriteBundleRecord]]:
+    return select(FavoriteBundleRecord).where(FavoriteBundleRecord.user_id == user.id)
+
+
 async def list_favorite_products(session: AsyncSession, user: User) -> FavoriteProductListOut:
-    rows = (await session.execute(_base_stmt(user).order_by(FavoriteProductRecord.created_at.desc()))).scalars().all()
-    return FavoriteProductListOut(items=[_to_item(row) for row in rows])
+    rows = (await session.execute(_product_stmt(user).order_by(FavoriteProductRecord.created_at.desc()))).scalars().all()
+    return FavoriteProductListOut(items=[_to_product_item(row) for row in rows])
 
 
 async def create_favorite_product(
@@ -39,7 +79,7 @@ async def create_favorite_product(
 ) -> FavoriteProductItem:
     existing = (
         await session.execute(
-            _base_stmt(user).where(FavoriteProductRecord.sku_id_default == payload.sku_id_default)
+            _product_stmt(user).where(FavoriteProductRecord.sku_id_default == payload.sku_id_default)
         )
     ).scalars().first()
 
@@ -59,7 +99,7 @@ async def create_favorite_product(
 
     await session.commit()
     await session.refresh(existing)
-    return _to_item(existing)
+    return _to_product_item(existing)
 
 
 async def delete_favorite_product(session: AsyncSession, user: User, sku_id_default: str) -> None:
@@ -73,3 +113,46 @@ async def delete_favorite_product(session: AsyncSession, user: User, sku_id_defa
 
     if result.rowcount == 0:
         raise ValueError("Favorite item not found.")
+
+
+async def list_favorite_bundles(session: AsyncSession, user: User) -> FavoriteBundleListOut:
+    rows = (await session.execute(_bundle_stmt(user).order_by(FavoriteBundleRecord.created_at.desc()))).scalars().all()
+    return FavoriteBundleListOut(items=[_to_bundle_item(row) for row in rows])
+
+
+async def create_favorite_bundle(
+    session: AsyncSession,
+    user: User,
+    payload: FavoriteBundleCreateIn,
+) -> FavoriteBundleItem:
+    existing = (
+        await session.execute(_bundle_stmt(user).where(FavoriteBundleRecord.bundle_id == payload.bundle_id))
+    ).scalars().first()
+
+    if existing is None:
+        existing = FavoriteBundleRecord(user_id=user.id, bundle_id=payload.bundle_id, title=payload.title)
+        session.add(existing)
+
+    existing.title = payload.title
+    existing.summary = payload.summary
+    existing.total_price = payload.total_price
+    existing.source_session_id = payload.source_session_id
+    existing.source_page = payload.source_page
+    existing.items = payload.items
+
+    await session.commit()
+    await session.refresh(existing)
+    return _to_bundle_item(existing)
+
+
+async def delete_favorite_bundle(session: AsyncSession, user: User, bundle_id: str) -> None:
+    result = await session.execute(
+        delete(FavoriteBundleRecord).where(
+            FavoriteBundleRecord.user_id == user.id,
+            FavoriteBundleRecord.bundle_id == bundle_id,
+        )
+    )
+    await session.commit()
+
+    if result.rowcount == 0:
+        raise ValueError("Favorite bundle not found.")

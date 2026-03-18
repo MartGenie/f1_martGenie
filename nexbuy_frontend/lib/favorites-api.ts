@@ -28,6 +28,37 @@ export type FavoriteProductCreateInput = {
   source_page?: string | null;
 };
 
+export type FavoriteBundleProduct = {
+  sku: string;
+  title: string;
+  price: number;
+  quantity: number;
+  imageUrl?: string | null;
+  categoryLabel?: string | null;
+};
+
+export type FavoriteBundleItem = {
+  id: string;
+  bundle_id: string;
+  title: string;
+  summary: string | null;
+  total_price: number | null;
+  source_session_id: string | null;
+  source_page: string | null;
+  items: FavoriteBundleProduct[];
+  created_at: string;
+};
+
+export type FavoriteBundleCreateInput = {
+  bundle_id: string;
+  title: string;
+  summary?: string | null;
+  total_price?: number | null;
+  source_session_id?: string | null;
+  source_page?: string | null;
+  items: FavoriteBundleProduct[];
+};
+
 function buildAuthHeaders() {
   const token = readAccessToken();
   const headers: Record<string, string> = {};
@@ -43,7 +74,7 @@ export async function fetchFavoriteProducts(): Promise<FavoriteProductItem[]> {
   });
   const payload = await parseJsonResponse<{ items: FavoriteProductItem[] }>(
     response,
-    "Could not load your favorites.",
+    "Could not load your favorite products.",
   );
   return payload.items;
 }
@@ -67,7 +98,43 @@ export async function deleteFavoriteProduct(skuIdDefault: string): Promise<void>
     method: "DELETE",
     headers: buildAuthHeaders(),
   });
+  await ensureOk(response, "Could not remove this favorite product.");
+}
 
+export async function fetchFavoriteBundles(): Promise<FavoriteBundleItem[]> {
+  const response = await fetch(`${getApiBaseUrl()}/favorites/bundles`, {
+    headers: buildAuthHeaders(),
+  });
+  const payload = await parseJsonResponse<{ items: FavoriteBundleItem[] }>(
+    response,
+    "Could not load your favorite bundles.",
+  );
+  return payload.items;
+}
+
+export async function createFavoriteBundle(
+  payload: FavoriteBundleCreateInput,
+): Promise<FavoriteBundleItem> {
+  const response = await fetch(`${getApiBaseUrl()}/favorites/bundles`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...buildAuthHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonResponse<FavoriteBundleItem>(response, "Could not save this bundle to favorites.");
+}
+
+export async function deleteFavoriteBundle(bundleId: string): Promise<void> {
+  const response = await fetch(`${getApiBaseUrl()}/favorites/bundles/${encodeURIComponent(bundleId)}`, {
+    method: "DELETE",
+    headers: buildAuthHeaders(),
+  });
+  await ensureOk(response, "Could not remove this favorite bundle.");
+}
+
+async function ensureOk(response: Response, fallbackMessage: string): Promise<void> {
   if (!response.ok) {
     const contentType = response.headers.get("content-type") ?? "";
     const isJson = contentType.includes("application/json");
@@ -75,7 +142,7 @@ export async function deleteFavoriteProduct(skuIdDefault: string): Promise<void>
     if (payload && typeof payload === "object" && "detail" in payload && typeof payload.detail === "string") {
       throw new Error(payload.detail);
     }
-    throw new Error("Could not remove this favorite.");
+    throw new Error(fallbackMessage);
   }
 }
 

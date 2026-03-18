@@ -36,3 +36,30 @@ class FavoriteProductRecord(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+class FavoriteBundleRecord(Base):
+    __tablename__ = "favorite_bundle"
+    __table_args__ = (UniqueConstraint("user_id", "bundle_id", name="uq_favorite_bundle_user_bundle"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    bundle_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    total_price: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
+    source_session_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    source_page: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    items: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
+    created_at: Mapped[Any] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[Any] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )

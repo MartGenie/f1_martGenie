@@ -1,8 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.favorites.schema import FavoriteProductCreateIn, FavoriteProductItem, FavoriteProductListOut
-from src.favorites.service import create_favorite_product, delete_favorite_product, list_favorite_products
+from src.favorites.schema import (
+    FavoriteBundleCreateIn,
+    FavoriteBundleItem,
+    FavoriteBundleListOut,
+    FavoriteProductCreateIn,
+    FavoriteProductItem,
+    FavoriteProductListOut,
+)
+from src.favorites.service import (
+    create_favorite_bundle,
+    create_favorite_product,
+    delete_favorite_bundle,
+    delete_favorite_product,
+    list_favorite_bundles,
+    list_favorite_products,
+)
 from src.web.auth.db import get_async_session
 from src.web.auth.dependencies import CurrentActiveUser
 from src.web.auth.models import User
@@ -36,5 +50,34 @@ async def delete_favorite_product_record(
 ) -> None:
     try:
         await delete_favorite_product(session, user=user, sku_id_default=sku_id_default)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/bundles", response_model=FavoriteBundleListOut)
+async def fetch_favorite_bundles(
+    user: User = Depends(CurrentActiveUser),
+    session: AsyncSession = Depends(get_async_session),
+) -> FavoriteBundleListOut:
+    return await list_favorite_bundles(session, user)
+
+
+@router.post("/bundles", response_model=FavoriteBundleItem, status_code=201)
+async def create_favorite_bundle_record(
+    payload: FavoriteBundleCreateIn,
+    user: User = Depends(CurrentActiveUser),
+    session: AsyncSession = Depends(get_async_session),
+) -> FavoriteBundleItem:
+    return await create_favorite_bundle(session, user=user, payload=payload)
+
+
+@router.delete("/bundles/{bundle_id}", status_code=204)
+async def delete_favorite_bundle_record(
+    bundle_id: str,
+    user: User = Depends(CurrentActiveUser),
+    session: AsyncSession = Depends(get_async_session),
+) -> None:
+    try:
+        await delete_favorite_bundle(session, user=user, bundle_id=bundle_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
