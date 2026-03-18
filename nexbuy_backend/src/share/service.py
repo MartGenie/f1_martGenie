@@ -7,7 +7,7 @@ import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.share.schema import ProductEmailShareOut
+from src.share.schema import BundleEmailShareIn, BundleEmailShareOut, ProductEmailShareOut
 from src.web.auth.config import settings
 from src.web.auth.models import User
 
@@ -197,4 +197,110 @@ async def share_product_via_email(
         email_id=email_id,
         recipient_email=recipient_email,
         product_title=str(product.get("title") or sku_id_default),
+    )
+
+
+def _build_bundle_share_html(*, sharer_email: str, payload: BundleEmailShareIn) -> str:
+    bundle_title = escape(payload.bundle_title)
+    sharer_label = escape(sharer_email)
+    total_price_text = _format_money(payload.total_price, "$") if payload.total_price is not None else "Total varies by item selection"
+    items_html = "".join(
+        (
+            '<div style="display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-top:1px solid #e5edf5;">'
+            f'<span style="font-size:14px;line-height:1.7;color:#344054;">{escape(item.title)}</span>'
+            f'<span style="font-size:14px;font-weight:700;color:#101828;">{escape(_format_money(item.price, "$"))}</span>'
+            "</div>"
+        )
+        for item in payload.items[:8]
+    )
+    summary_html = (
+        f'<p style="margin:0 0 18px 0;font-size:15px;line-height:1.8;color:#475467;">{escape(payload.summary)}</p>'
+        if payload.summary
+        else ""
+    )
+
+    return (
+        '<div style="background:#f4f8fb;padding:32px 16px;font-family:Inter,Segoe UI,system-ui,sans-serif;color:#101828;">'
+        '<div style="max-width:620px;margin:0 auto;background:#ffffff;border:1px solid #dde5ef;'
+        'border-radius:32px;padding:28px;box-shadow:0 22px 60px rgba(15,23,42,0.08);">'
+        '<p style="margin:0 0 10px 0;font-size:12px;font-weight:700;letter-spacing:0.24em;text-transform:uppercase;color:#7c8da5;">'
+        'Shared bundle from MartGennie</p>'
+        f'<h1 style="margin:0 0 14px 0;font-size:28px;line-height:1.15;">{bundle_title}</h1>'
+        f'<p style="margin:0 0 18px 0;font-size:15px;line-height:1.8;color:#475467;">'
+        f'{sharer_label} shared a full MartGennie package with you.</p>'
+        f"{summary_html}"
+        '<div style="padding:22px;border:1px solid #e5edf5;border-radius:24px;'
+        'background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);">'
+        '<p style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#7c8da5;">Package total</p>'
+        f'<p style="margin:8px 0 0 0;font-size:30px;font-weight:800;color:#101828;">{escape(total_price_text)}</p>'
+        '<div style="margin-top:18px;">'
+        f"{items_html}"
+        "</div>"
+        "</div>"
+        '<p style="margin:22px 0 0 0;font-size:13px;line-height:1.8;color:#667085;">'
+        'This email was sent through MartGennie package sharing.</p>'
+        "</div>"
+        "</div>"
+    )
+
+
+def _build_bundle_share_text(*, sharer_email: str, payload: BundleEmailShareIn) -> str:
+    parts = [
+        f"{sharer_email} shared a MartGennie bundle with you.",
+        "",
+        payload.bundle_title,
+    ]
+    if payload.summary:
+        parts.extend(["", payload.summary])
+    if payload.total_price is not None:
+        parts.append(f"Package total: {_format_money(payload.total_price, '$')}")
+    if payload.items:
+        parts.extend(["", "Included items:"])
+        for item in payload.items[:8]:
+            parts.append(f"- {item.title}: {_format_money(item.price, '$')}")
+    return "\n".join(parts)
+
+
+async def share_bundle_via_email(
+    *,
+    user: User,
+    payload: BundleEmailShareIn,
+) -> BundleEmailShareOut:
+    if not settings.resend_api_key:
+        raise RuntimeError("RESEND_API_KEY is not configured.")
+
+    subject = f"{user.email.split('@', 1)[0]} shared a MartGennie package with you"
+    resend_payload: dict[str, Any] = {
+        "from": settings.resend_from_email,
+        "to": [payload.recipient_email],
+        "subject": subject,
+        "html": _build_bundle_share_html(sharer_email=user.email, payload=payload),
+        "text": _build_bundle_share_text(sharer_email=user.email, payload=payload),
+    }
+    if settings.resend_reply_to:
+        resend_payload["reply_to"] = settings.resend_reply_to
+
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        response = await client.post(
+            f"{settings.resend_api_base_url.rstrip('/')}/emails",
+            headers={
+                "Authorization": f"Bearer {settings.resend_api_key}",
+                "Content-Type": "application/json",
+            },
+            json=resend_payload,
+        )
+
+    if response.is_error:
+        detail = response.text.strip() or "Unknown Resend error."
+        raise RuntimeError(f"Resend email send failed: {detail}")
+
+    data = response.json()
+    email_id = str(data.get("id") or "")
+    if not email_id:
+        raise RuntimeError("Resend did not return an email id.")
+
+    return BundleEmailShareOut(
+        email_id=email_id,
+        recipient_email=payload.recipient_email,
+        bundle_title=payload.bundle_title,
     )

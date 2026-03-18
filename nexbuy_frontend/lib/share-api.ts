@@ -11,6 +11,25 @@ export type ShareProductEmailOut = {
   product_title: string;
 };
 
+export type ShareBundleEmailItemInput = {
+  title: string;
+  price: number;
+};
+
+export type ShareBundleEmailInput = {
+  bundle_title: string;
+  summary?: string | null;
+  total_price?: number | null;
+  recipient_email: string;
+  items: ShareBundleEmailItemInput[];
+};
+
+export type ShareBundleEmailOut = {
+  email_id: string;
+  recipient_email: string;
+  bundle_title: string;
+};
+
 function buildAuthHeaders() {
   const token = readAccessToken();
   const headers: Record<string, string> = {
@@ -47,4 +66,31 @@ export async function shareProductByEmail(
   }
 
   return data as ShareProductEmailOut;
+}
+
+export async function shareBundleByEmail(
+  payload: ShareBundleEmailInput,
+): Promise<ShareBundleEmailOut> {
+  const response = await fetch(`${getApiBaseUrl()}/share/bundle/email`, {
+    method: "POST",
+    headers: buildAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const isJson = contentType.includes("application/json");
+  const data = isJson ? ((await response.json()) as unknown) : null;
+
+  if (!response.ok) {
+    if (data && typeof data === "object" && "detail" in data && typeof data.detail === "string") {
+      throw new Error(data.detail);
+    }
+    throw new Error("Could not share this bundle by email.");
+  }
+
+  if (!data) {
+    throw new Error("Could not share this bundle by email.");
+  }
+
+  return data as ShareBundleEmailOut;
 }

@@ -4,14 +4,16 @@ import { useEffect, useState } from "react";
 
 type ProductShareModalProps = {
   open: boolean;
-  productTitle: string;
+  title: string;
+  shareLabel?: string;
   onClose: () => void;
   onSubmit: (recipientEmail: string) => Promise<void>;
 };
 
 export default function ProductShareModal({
   open,
-  productTitle,
+  title,
+  shareLabel = "pick",
   onClose,
   onSubmit,
 }: ProductShareModalProps) {
@@ -31,7 +33,7 @@ export default function ProductShareModal({
 
   async function handleSubmit() {
     if (!recipientEmail.trim()) {
-      setError("Enter an email address to share this product.");
+      setError(`Enter an email address to share this ${shareLabel}.`);
       return;
     }
 
@@ -43,7 +45,7 @@ export default function ProductShareModal({
       setSuccessMessage("Shared successfully. The email is on its way.");
     } catch (submitError) {
       setError(
-        submitError instanceof Error ? submitError.message : "Could not share this product.",
+        submitError instanceof Error ? submitError.message : `Could not share this ${shareLabel}.`,
       );
     } finally {
       setIsSubmitting(false);
@@ -68,12 +70,12 @@ export default function ProductShareModal({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#7c8da5]">
-              Share product
+              Share by email
             </p>
             <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-[#101828]">
-              Send this pick by email
+              Send this {shareLabel} by email
             </h2>
-            <p className="mt-2 text-sm leading-7 text-[#667085]">{productTitle}</p>
+            <p className="mt-2 text-sm leading-7 text-[#667085]">{title}</p>
           </div>
           <button
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dce5ef] bg-white text-xl text-[#344054] transition hover:bg-[#f8fafc]"

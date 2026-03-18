@@ -1061,7 +1061,8 @@ export default function PlazaPage() {
         onClose={() => setShareTarget(null)}
         onSubmit={handleSubmitShare}
         open={Boolean(shareTarget)}
-        productTitle={shareTarget?.title ?? ""}
+        shareLabel="product"
+        title={shareTarget?.title ?? ""}
       />
     </>
   );

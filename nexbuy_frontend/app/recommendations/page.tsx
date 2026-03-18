@@ -16,7 +16,7 @@ import {
 } from "@/lib/favorites-api";
 import { readNegotiatedDeals, readNegotiationRuns } from "@/lib/negotiation-store";
 import { clearCurrentOrder, setOrderCheckout } from "@/lib/order-store";
-import { shareProductByEmail } from "@/lib/share-api";
+import { shareBundleByEmail, shareProductByEmail } from "@/lib/share-api";
 import AuthModal from "@/src/components/AuthModal";
 import ProductShareModal from "@/src/components/ProductShareModal";
 import WorkspaceShell from "@/src/components/WorkspaceShell";
@@ -146,7 +146,17 @@ export default function RecommendationsPage() {
   const [favoriteSkuSet, setFavoriteSkuSet] = useState<Set<string>>(new Set());
   const [isUpdatingFavoriteSku, setIsUpdatingFavoriteSku] = useState<string | null>(null);
   const [isUpdatingFavoriteBundleId, setIsUpdatingFavoriteBundleId] = useState<string | null>(null);
-  const [shareTarget, setShareTarget] = useState<{ sku: string; title: string } | null>(null);
+  const [shareTarget, setShareTarget] = useState<
+    | { type: "product"; sku: string; title: string }
+    | {
+        type: "bundle";
+        title: string;
+        summary: string | null;
+        totalPrice: number;
+        items: { title: string; price: number }[];
+      }
+    | null
+  >(null);
   const workspaceSnapshot = useSyncExternalStore(
     subscribeStorage,
     getWorkspaceSnapshot,
@@ -301,21 +311,49 @@ export default function RecommendationsPage() {
     router.push("/order");
   }
 
-  function handleOpenShare(sku: string, title: string) {
+  function handleOpenProductShare(sku: string, title: string) {
     if (!isAuthenticated) {
       setAuthOpen(true);
       return;
     }
-    setShareTarget({ sku, title });
+    setShareTarget({ type: "product", sku, title });
+  }
+
+  function handleOpenBundleShare(plan: (typeof displayedPlans)[number]) {
+    if (!isAuthenticated) {
+      setAuthOpen(true);
+      return;
+    }
+    setShareTarget({
+      type: "bundle",
+      title: plan.title,
+      summary: plan.explanation || plan.summary,
+      totalPrice: plan.totalPrice,
+      items: plan.items.map((item) => ({
+        title: item.title,
+        price: item.price,
+      })),
+    });
   }
 
   async function handleSubmitShare(recipientEmail: string) {
     if (!shareTarget) {
       return;
     }
-    await shareProductByEmail({
-      sku_id_default: shareTarget.sku,
+    if (shareTarget.type === "product") {
+      await shareProductByEmail({
+        sku_id_default: shareTarget.sku,
+        recipient_email: recipientEmail,
+      });
+      return;
+    }
+
+    await shareBundleByEmail({
+      bundle_title: shareTarget.title,
+      summary: shareTarget.summary,
+      total_price: shareTarget.totalPrice,
       recipient_email: recipientEmail,
+      items: shareTarget.items,
     });
   }
 
@@ -469,20 +507,33 @@ export default function RecommendationsPage() {
                               <h2 className="text-2xl font-black tracking-[-0.04em] text-[#101828]">{plan.title}</h2>
                             </button>
                           </div>
-                          <button
-                            aria-label={favoriteBundleIdSet.has(plan.id) ? "Remove bundle from likes" : "Add bundle to likes"}
-                            className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-[18px] transition ${
-                              favoriteBundleIdSet.has(plan.id) ? "text-[#dc2626]" : "text-[#111827]"
-                            }`}
-                            disabled={isUpdatingFavoriteBundleId === plan.id}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void handleToggleFavoriteBundle(plan);
-                            }}
-                            type="button"
-                          >
-                            <span aria-hidden="true">{favoriteBundleIdSet.has(plan.id) ? "♥" : "♡"}</span>
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              aria-label="Share bundle by email"
+                              className="inline-flex h-9 w-9 items-center justify-center text-[20px] leading-none text-[#344054] transition hover:-translate-y-0.5 hover:text-[#101828]"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleOpenBundleShare(plan);
+                              }}
+                              type="button"
+                            >
+                              ✉
+                            </button>
+                            <button
+                              aria-label={favoriteBundleIdSet.has(plan.id) ? "Remove bundle from likes" : "Add bundle to likes"}
+                              className={`inline-flex h-9 w-9 items-center justify-center text-[22px] leading-none transition ${
+                                favoriteBundleIdSet.has(plan.id) ? "text-[#dc2626]" : "text-[#111827]"
+                              }`}
+                              disabled={isUpdatingFavoriteBundleId === plan.id}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleToggleFavoriteBundle(plan);
+                              }}
+                              type="button"
+                            >
+                              <span aria-hidden="true">{favoriteBundleIdSet.has(plan.id) ? "♥" : "♡"}</span>
+                            </button>
+                          </div>
                         </div>
                         <button className="mt-3 block w-full text-left" onClick={() => setSelectedPlanId(plan.id)} type="button">
                           <p className="text-sm font-medium leading-7 text-[#344054]">{plan.explanation || plan.summary}</p>
@@ -530,7 +581,7 @@ export default function RecommendationsPage() {
                                   <button
                                     aria-label="Share by email"
                                     className="inline-flex h-8 w-8 items-center justify-center text-[24px] leading-none text-[#344054] transition hover:-translate-y-0.5 hover:text-[#101828]"
-                                    onClick={() => handleOpenShare(item.sku, item.title)}
+                                    onClick={() => handleOpenProductShare(item.sku, item.title)}
                                     type="button"
                                   >
                                     ✉
@@ -687,7 +738,8 @@ export default function RecommendationsPage() {
         onClose={() => setShareTarget(null)}
         onSubmit={handleSubmitShare}
         open={Boolean(shareTarget)}
-        productTitle={shareTarget?.title ?? ""}
+        shareLabel={shareTarget?.type === "bundle" ? "bundle" : "product"}
+        title={shareTarget?.title ?? ""}
       />
     </>
   );
