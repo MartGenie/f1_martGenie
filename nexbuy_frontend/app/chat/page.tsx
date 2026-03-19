@@ -1117,7 +1117,7 @@ export default function ChatWorkspacePage() {
     return (
       <section className="h-full overflow-y-auto border-l border-[#e2e8f0] bg-[linear-gradient(180deg,#fbfdff_0%,#f5f8fc_100%)]">
         <div className="border-b border-[#e8edf3] px-5 py-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 pl-10">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8b97a8]">
                 Results
@@ -1126,21 +1126,6 @@ export default function ChatWorkspacePage() {
                 {snapshotPlans.length} package options ready
               </h3>
             </div>
-            <button
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#98a2b3] transition hover:bg-white hover:text-[#344054]"
-              onClick={() => setIsResultsPanelOpen(false)}
-              type="button"
-            >
-              <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
-                <path
-                  d="M15 19 8 12l7-7"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.8"
-                />
-              </svg>
-            </button>
           </div>
         </div>
 
@@ -1758,9 +1743,24 @@ export default function ChatWorkspacePage() {
                 role="separator"
               />
               <aside
-                className="hidden shrink-0 overflow-hidden lg:block"
+                className="relative hidden shrink-0 overflow-visible lg:block"
                 style={{ width: `${resultsPanelWidth}px` }}
               >
+                <button
+                  className="absolute -left-5 top-1/2 z-20 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#d8e2ee] bg-white/92 text-[#98a2b3] shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur transition hover:text-[#344054]"
+                  onClick={() => setIsResultsPanelOpen(false)}
+                  type="button"
+                >
+                  <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <path
+                      d="M15 19 8 12l7-7"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.8"
+                    />
+                  </svg>
+                </button>
                 {renderResultsPanel(latestPackageSnapshotId)}
               </aside>
             </>
