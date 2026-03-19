@@ -117,7 +117,7 @@ export default function WorkspaceShell({
 
     async function loadHistory() {
       try {
-        const sessions = await fetchChatHistory();
+        const sessions = await fetchChatHistory(selectedProjectId || undefined);
         if (cancelled) {
           return;
         }
@@ -149,7 +149,7 @@ export default function WorkspaceShell({
       window.removeEventListener(CHAT_HISTORY_REFRESH_EVENT, handleRefresh);
       window.removeEventListener("focus", handleRefresh);
     };
-  }, [effectiveAuthenticated]);
+  }, [effectiveAuthenticated, selectedProjectId]);
 
   useEffect(() => {
     if (!effectiveAuthenticated) {
@@ -283,10 +283,12 @@ export default function WorkspaceShell({
       await deleteProject(projectId);
       const items = await fetchProjects();
       setProjects(items);
-      if (!items.some((item) => item.id === selectedProjectId) && items[0]?.id) {
+      const selectedStillExists = items.some((item) => item.id === selectedProjectId);
+      const fallbackProjectId = selectedStillExists ? selectedProjectId : (items[0]?.id ?? undefined);
+      if (!selectedStillExists && items[0]?.id) {
         saveSelectedProjectId(items[0].id);
       }
-      const sessions = await fetchChatHistory();
+      const sessions = await fetchChatHistory(fallbackProjectId);
       setRemoteHistoryItems(
         sessions.map((session) => ({
           id: session.session_id,
@@ -309,7 +311,7 @@ export default function WorkspaceShell({
       setIsDeletingHistoryId(sessionId);
       setOpenActionMenu(null);
       await deleteChatSession(sessionId);
-      const sessions = await fetchChatHistory();
+      const sessions = await fetchChatHistory(selectedProjectId || undefined);
       setRemoteHistoryItems(
         sessions.map((session) => ({
           id: session.session_id,
@@ -483,10 +485,7 @@ export default function WorkspaceShell({
                         href={item.href}
                         onClick={() => setSelectedHistoryId(item.id)}
                       >
-                        <div>
-                          <p className="truncate text-sm font-medium">{item.title}</p>
-                          <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#7b8798]">{item.preview}</p>
-                        </div>
+                        <p className="truncate text-sm font-medium">{item.title}</p>
                       </Link>
                       <div
                         className="absolute right-2 top-2"
