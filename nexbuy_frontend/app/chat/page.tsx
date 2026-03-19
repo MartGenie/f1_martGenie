@@ -285,6 +285,8 @@ export default function ChatWorkspacePage() {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingMessageContent, setEditingMessageContent] = useState("");
   const [embeddedExpandedPlanIds, setEmbeddedExpandedPlanIds] = useState<Record<string, string[]>>({});
+  const [isResultsPanelOpen, setIsResultsPanelOpen] = useState(false);
+  const [resultsPanelWidth, setResultsPanelWidth] = useState(440);
   const [status, setStatus] = useState("Preparing workspace...");
   const [error, setError] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -305,6 +307,7 @@ export default function ChatWorkspacePage() {
   const runStartRef = useRef<number | null>(null);
   const restoredWorkspaceRef = useRef(false);
   const attachmentMenuRef = useRef<HTMLDivElement | null>(null);
+  const isResizingResultsPanelRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -448,6 +451,51 @@ export default function ChatWorkspacePage() {
     window.addEventListener("mousedown", handlePointerDown);
     return () => window.removeEventListener("mousedown", handlePointerDown);
   }, [openAttachmentMenu]);
+
+  const latestPackageSnapshotId = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const snapshotId = messages[index]?.packageSnapshotId;
+      if (snapshotId && packageSnapshots[snapshotId]) {
+        return snapshotId;
+      }
+    }
+
+    const fallbackSnapshotId = Object.keys(packageSnapshots).at(-1);
+    return fallbackSnapshotId ?? null;
+  }, [messages, packageSnapshots]);
+
+  useEffect(() => {
+    if (latestPackageSnapshotId) {
+      setIsResultsPanelOpen(true);
+    }
+  }, [latestPackageSnapshotId]);
+
+  useEffect(() => {
+    function handlePointerMove(event: MouseEvent) {
+      if (!isResizingResultsPanelRef.current) {
+        return;
+      }
+
+      const nextWidth = Math.min(640, Math.max(340, window.innerWidth - event.clientX));
+      setResultsPanelWidth(nextWidth);
+    }
+
+    function handlePointerUp() {
+      if (!isResizingResultsPanelRef.current) {
+        return;
+      }
+      isResizingResultsPanelRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+
+    window.addEventListener("mousemove", handlePointerMove);
+    window.addEventListener("mouseup", handlePointerUp);
+    return () => {
+      window.removeEventListener("mousemove", handlePointerMove);
+      window.removeEventListener("mouseup", handlePointerUp);
+    };
+  }, []);
 
   useEffect(() => {
     resizeComposer(heroTextareaRef.current);
@@ -1055,7 +1103,7 @@ export default function ChatWorkspacePage() {
     );
   }
 
-  function renderPackageResultBlock(snapshotId: string) {
+  function renderResultsPanel(snapshotId: string) {
     const snapshotPlans = packageSnapshots[snapshotId];
     if (!snapshotPlans || snapshotPlans.length === 0) {
       return null;
@@ -1063,14 +1111,33 @@ export default function ChatWorkspacePage() {
     const expandedPlanIds = embeddedExpandedPlanIds[snapshotId] ?? [snapshotPlans[0]?.id ?? ""];
 
     return (
-      <section className="mt-5 overflow-hidden rounded-[28px] border border-[#dde5ef] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] shadow-[0_18px_48px_rgba(148,163,184,0.10)]">
+      <section className="h-full overflow-y-auto border-l border-[#e2e8f0] bg-[linear-gradient(180deg,#fbfdff_0%,#f5f8fc_100%)]">
         <div className="border-b border-[#e8edf3] px-5 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8b97a8]">
-            Package results
-          </p>
-          <h3 className="mt-2 text-lg font-bold tracking-[-0.03em] text-[#101828]">
-            {snapshotPlans.length} package options ready
-          </h3>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8b97a8]">
+                Results
+              </p>
+              <h3 className="mt-2 text-lg font-bold tracking-[-0.03em] text-[#101828]">
+                {snapshotPlans.length} package options ready
+              </h3>
+            </div>
+            <button
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#98a2b3] transition hover:bg-white hover:text-[#344054]"
+              onClick={() => setIsResultsPanelOpen(false)}
+              type="button"
+            >
+              <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
+                <path
+                  d="M15 19 8 12l7-7"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.8"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="p-4">
@@ -1417,7 +1484,8 @@ export default function ChatWorkspacePage() {
         }
       `}</style>
       <div className="h-full">
-        <section className="flex min-h-0 h-full flex-col">
+        <section className="flex min-h-0 h-full">
+          <div className="relative flex min-w-0 flex-1 flex-col">
             <div
               className={`flex-1 overflow-y-auto px-5 py-5 md:px-6 ${
                 hasConversation ? "space-y-6" : "flex flex-col items-center justify-center"
@@ -1613,9 +1681,6 @@ export default function ChatWorkspacePage() {
                             <p>{message.content}</p>
                           </div>
                         )}
-                        {message.role === "assistant" && message.packageSnapshotId
-                          ? renderPackageResultBlock(message.packageSnapshotId)
-                          : null}
                       </article>
                     </div>
                   ))}
@@ -1654,7 +1719,46 @@ export default function ChatWorkspacePage() {
                 <p className="text-sm text-[#be123c]">{error}</p>
               </div>
             ) : null}
-          </section>
+            {latestPackageSnapshotId && !isResultsPanelOpen ? (
+              <button
+                className="absolute right-4 top-1/2 z-20 inline-flex -translate-y-1/2 items-center gap-2 rounded-full border border-[#dbe5ef] bg-white/96 px-3 py-2 text-sm font-semibold text-[#344054] shadow-[0_14px_32px_rgba(15,23,42,0.12)] backdrop-blur transition hover:border-[#bfd3ea] hover:bg-[#f8fbff]"
+                onClick={() => setIsResultsPanelOpen(true)}
+                type="button"
+              >
+                <span>Results</span>
+                <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <path
+                    d="m9 5 7 7-7 7"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.8"
+                  />
+                </svg>
+              </button>
+            ) : null}
+          </div>
+
+          {latestPackageSnapshotId && isResultsPanelOpen ? (
+            <>
+              <div
+                className="hidden w-1.5 shrink-0 cursor-col-resize bg-transparent hover:bg-[#dbe5ef] lg:block"
+                onMouseDown={() => {
+                  isResizingResultsPanelRef.current = true;
+                  document.body.style.cursor = "col-resize";
+                  document.body.style.userSelect = "none";
+                }}
+                role="separator"
+              />
+              <aside
+                className="hidden shrink-0 overflow-hidden lg:block"
+                style={{ width: `${resultsPanelWidth}px` }}
+              >
+                {renderResultsPanel(latestPackageSnapshotId)}
+              </aside>
+            </>
+          ) : null}
+        </section>
       </div>
       {showOnboarding ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
