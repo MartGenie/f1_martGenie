@@ -298,6 +298,18 @@ function deriveListPrice(item: PlanOption["items"][number]) {
   return Math.round(item.price * stableMarkup * 100) / 100;
 }
 
+function buildSavingsMeta(originalPrice: number, currentPrice: number) {
+  const safeOriginal = Math.max(originalPrice, currentPrice);
+  const savedAmount = Math.max(safeOriginal - currentPrice, 0);
+  const savedPercent = safeOriginal > 0 ? Math.round((savedAmount / safeOriginal) * 100) : 0;
+  return {
+    originalPrice: safeOriginal,
+    currentPrice,
+    savedAmount: Math.round(savedAmount * 100) / 100,
+    savedPercent,
+  };
+}
+
 
 export default function ChatWorkspacePage() {
   const router = useRouter();
@@ -1384,6 +1396,7 @@ export default function ChatWorkspacePage() {
               const originalTotalPrice = Math.round(
                 plan.items.reduce((sum, item) => sum + deriveListPrice(item), 0) * 100,
               ) / 100;
+              const totalSavingsMeta = buildSavingsMeta(originalTotalPrice, currentTotalPrice);
               return (
                 <div
                   className={`overflow-hidden rounded-[22px] border transition ${
@@ -1439,11 +1452,16 @@ export default function ChatWorkspacePage() {
                       <div className="flex shrink-0 items-center gap-3">
                         <div className="flex flex-col items-end">
                           <p className="text-xs font-medium text-[#98a2b3] line-through">
-                            ${originalTotalPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                            ${totalSavingsMeta.originalPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                           </p>
-                          <div className="rounded-full bg-white/80 px-3 py-1.5 text-sm font-semibold text-[#123b5f]">
-                            ${currentTotalPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                          <div className="mt-1 rounded-full bg-[linear-gradient(180deg,#eff6ff_0%,#dbeafe_100%)] px-3.5 py-1.5 text-base font-black text-[#123b5f] shadow-[0_8px_20px_rgba(59,130,246,0.12)]">
+                            ${totalSavingsMeta.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                           </div>
+                          {totalSavingsMeta.savedAmount > 0 ? (
+                            <p className="mt-1 text-xs font-semibold text-[#2563eb]">
+                              You save ${totalSavingsMeta.savedAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                            </p>
+                          ) : null}
                         </div>
                         <span
                           className={`inline-flex items-center justify-center text-[#98a2b3] transition ${isExpanded ? "rotate-180" : ""}`}
@@ -1469,6 +1487,9 @@ export default function ChatWorkspacePage() {
                         style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 280px))" }}
                       >
                         {plan.items.map((item) => (
+                          (() => {
+                            const itemSavingsMeta = buildSavingsMeta(deriveListPrice(item), item.price);
+                            return (
                           <article
                             className="group relative z-0 flex flex-1 flex-col overflow-hidden rounded-[24px] border border-[#dbe5f0] bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(244,248,252,0.96)_100%)] shadow-[0_18px_45px_rgba(148,163,184,0.12)] transition duration-300 hover:-translate-y-1 hover:border-[#bfd3ea] hover:shadow-[0_24px_55px_rgba(96,165,250,0.14)]"
                             key={`${plan.id}-${item.sku}`}
@@ -1517,15 +1538,22 @@ export default function ChatWorkspacePage() {
                               <div className="mt-auto flex items-center justify-between gap-3 pt-5">
                                 <div>
                                   <p className="text-sm font-medium text-[#98a2b3] line-through">
-                                    ${deriveListPrice(item).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                    ${itemSavingsMeta.originalPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                                   </p>
-                                  <p className="text-xl font-black tracking-[-0.03em] text-[#0f172a]">
-                                    ${item.price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                  <p className="mt-1 text-2xl font-black tracking-[-0.03em] text-[#123b5f]">
+                                    ${itemSavingsMeta.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                                   </p>
+                                  {itemSavingsMeta.savedAmount > 0 ? (
+                                    <p className="mt-1 text-xs font-semibold text-[#2563eb]">
+                                      Save ${itemSavingsMeta.savedAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                    </p>
+                                  ) : null}
                                 </div>
                               </div>
                             </div>
                           </article>
+                            );
+                          })()
                         ))}
                       </div>
 
