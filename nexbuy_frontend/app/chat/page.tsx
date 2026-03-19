@@ -503,6 +503,7 @@ export default function ChatWorkspacePage() {
             return;
           }
           setSessionId(createdSessionId);
+          notifyHistoryRefresh();
           setStatus("Workspace ready. Tell me your room, style, and budget.");
         }
       } catch (bootstrapError) {
@@ -559,6 +560,7 @@ export default function ChatWorkspacePage() {
       try {
         activeSessionId = await createChatSession(readSelectedProjectId() || undefined);
         setSessionId(activeSessionId);
+        notifyHistoryRefresh();
       } catch (sessionError) {
         if (isUnauthorizedAuthError(sessionError)) {
           handleExpiredChatAuth(content);
@@ -831,6 +833,7 @@ export default function ChatWorkspacePage() {
 
       const createdSessionId = await createChatSession(readSelectedProjectId() || undefined);
       setSessionId(createdSessionId);
+      notifyHistoryRefresh();
       setShowOnboarding(false);
       setStatus("Memory saved. Workspace ready.");
     } catch (submitError) {

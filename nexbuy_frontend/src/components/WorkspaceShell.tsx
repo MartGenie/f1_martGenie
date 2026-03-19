@@ -113,7 +113,7 @@ export default function WorkspaceShell({
 
     async function loadHistory() {
       try {
-        const sessions = await fetchChatHistory(selectedProjectId || undefined);
+        const sessions = await fetchChatHistory();
         if (cancelled) {
           return;
         }
@@ -146,7 +146,7 @@ export default function WorkspaceShell({
       window.removeEventListener(CHAT_HISTORY_REFRESH_EVENT, handleRefresh);
       window.removeEventListener("focus", handleRefresh);
     };
-  }, [effectiveAuthenticated, selectedProjectId]);
+  }, [effectiveAuthenticated]);
 
   useEffect(() => {
     if (!effectiveAuthenticated) {
@@ -295,37 +295,43 @@ export default function WorkspaceShell({
                       Projects
                     </span>
                   </div>
-                  <div className="space-y-1">
-                    {displayProjects.map((project) => (
-                      <button
-                        className={`block w-full rounded-[16px] px-3 py-2 text-left transition ${
-                          selectedProjectId === project.id
-                            ? "bg-[#edf5ff] text-[#123b5f]"
-                            : "text-[#526173] hover:bg-[#f4f7fb]"
-                        }`}
-                        key={project.id}
-                        onClick={() => {
-                          saveSelectedProjectId(project.id);
-                          router.push("/chat");
-                        }}
-                        type="button"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium">{project.title}</p>
-                            {project.summary ? (
-                              <p className="mt-1 truncate text-xs leading-5 text-[#7b8798]">
-                                {project.summary}
-                              </p>
-                            ) : null}
+                  {displayProjects.length > 0 ? (
+                    <div className="max-h-[220px] space-y-1 overflow-y-auto pr-1">
+                      {displayProjects.map((project) => (
+                        <button
+                          className={`block w-full rounded-[18px] px-3 py-3 text-left transition ${
+                            selectedProjectId === project.id
+                              ? "bg-[#edf5ff] text-[#123b5f]"
+                              : "text-[#526173] hover:bg-[#f4f7fb]"
+                          }`}
+                          key={project.id}
+                          onClick={() => {
+                            saveSelectedProjectId(project.id);
+                            router.push("/chat");
+                          }}
+                          type="button"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">{project.title}</p>
+                              {project.summary ? (
+                                <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#7b8798]">
+                                  {project.summary}
+                                </p>
+                              ) : null}
+                            </div>
+                            <span className="shrink-0 text-[11px] text-[#98a2b3]">
+                              {new Date(project.updated_at).toLocaleDateString()}
+                            </span>
                           </div>
-                          <span className="shrink-0 pt-0.5 text-[11px] text-[#98a2b3]">
-                            {new Date(project.updated_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="px-3 py-2 text-xs leading-5 text-[#98a2b3]">
+                      No projects yet.
+                    </div>
+                  )}
                   <div className="pt-1">
                     <button
                       className="inline-flex h-9 w-full items-center justify-center rounded-[16px] border border-[#dce5ef] bg-[#f8fbff] text-sm font-semibold text-[#486480] transition hover:border-[#bfd4ec] hover:bg-[#eef4fb] hover:text-[#123b5f]"

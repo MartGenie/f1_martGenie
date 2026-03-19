@@ -60,7 +60,11 @@ export async function createChatSession(projectId?: string | null): Promise<stri
 }
 
 export async function fetchChatHistory(projectId?: string | null): Promise<HistoryItemResponse[]> {
-  const url = new URL(`${getApiBaseUrl()}/chat/history`);
+  const historyPath = `${getApiBaseUrl()}/chat/history`;
+  const url =
+    typeof window === "undefined"
+      ? new URL(historyPath, "http://localhost")
+      : new URL(historyPath, window.location.origin);
   if (projectId) {
     url.searchParams.set("project_id", projectId);
   }

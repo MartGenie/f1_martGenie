@@ -272,16 +272,16 @@ async def load_chat_history(session: AsyncSession, user_id: UUID, project_id: st
         project_row = await get_project(session, user_id, project_id)
         if project_row is None:
             return ChatHistoryListOut(sessions=[])
-        effective_project_id = project_id
+        query = select(ChatSessionRecord).where(
+            ChatSessionRecord.user_id == user_id,
+            ChatSessionRecord.project_id == project_id,
+        )
     else:
-        effective_project_id = (await ensure_default_project(session, user_id)).id
+        query = select(ChatSessionRecord).where(ChatSessionRecord.user_id == user_id)
 
     rows = (
         await session.scalars(
-            select(ChatSessionRecord)
-            .where(ChatSessionRecord.user_id == user_id, ChatSessionRecord.project_id == effective_project_id)
-            .order_by(ChatSessionRecord.last_activity_at.desc(), ChatSessionRecord.created_at.desc())
-            .limit(30)
+            query.order_by(ChatSessionRecord.last_activity_at.desc(), ChatSessionRecord.created_at.desc()).limit(30)
         )
     ).all()
 
