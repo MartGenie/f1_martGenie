@@ -339,7 +339,6 @@ async def stream_session(session_id: str, task_id: str = Query(...)) -> Streamin
 
         try:
             logger.info("chat.stream initial_yields session_id=%s task_id=%s", session_id, task_id)
-            yield _sse({"type": "message_delta", "delta": "Analyzing your requirements... "})
             yield add_timeline("scan_started", "Started parsing requirements.")
 
             conversation = [

@@ -288,7 +288,7 @@ export default function ChatWorkspacePage() {
   const [isSending, setIsSending] = useState(false);
   const [runElapsedSec, setRunElapsedSec] = useState(0);
   const [lastRunElapsedSec, setLastRunElapsedSec] = useState(0);
-  const [thinkingExpanded, setThinkingExpanded] = useState(true);
+  const [thinkingExpanded, setThinkingExpanded] = useState(false);
   const [streamText, setStreamText] = useState("");
   const streamTextRef = useRef("");
   const heroTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -430,12 +430,6 @@ export default function ChatWorkspacePage() {
       setRunElapsedSec(seconds);
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [isSending]);
-
-  useEffect(() => {
-    if (isSending) {
-      setThinkingExpanded(true);
-    }
   }, [isSending]);
 
   useEffect(() => {
@@ -598,6 +592,7 @@ export default function ChatWorkspacePage() {
     setActivePlanId(null);
     setStatus(AGENT_ANALYZING_STATUS);
     setLastRunElapsedSec(0);
+    setThinkingExpanded(false);
     packageSnapshotIdRef.current = null;
     plansRef.current = [];
 
@@ -883,6 +878,11 @@ export default function ChatWorkspacePage() {
   const visibleThinkingSteps = thinkingExpanded ? displayedTimeline : displayedTimeline.slice(0, 1);
   const currentThinkingTitle =
     displayedTimeline.length === 0 ? "Working through your request" : displayedTimeline[0]?.friendly.title ?? "Working through your request";
+  const thinkingSubtitle = isSending
+    ? currentThinkingTitle
+    : thinkingExpanded
+      ? "Detailed steps shown below."
+      : "Expand to view details.";
 
   function formatElapsed(seconds: number) {
     if (seconds < 60) {
@@ -948,9 +948,7 @@ export default function ChatWorkspacePage() {
                       </div>
                     ) : null}
                   </div>
-                  <p className="mt-0.5 truncate text-sm text-[#667085]">
-                    {thinkingExpanded ? "Open to review the full working trail." : currentThinkingTitle}
-                  </p>
+                  <p className="mt-0.5 truncate text-sm text-[#667085]">{thinkingSubtitle}</p>
                 </div>
               </div>
             </div>
@@ -1451,14 +1449,16 @@ export default function ChatWorkspacePage() {
                       style={{ fontFamily: "'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif" }}
                     >
                       <div className="max-w-none text-[#1f2937]">
-                        <p className="relative">
-                          {streamText || "Drafting the recommendation and preparing package options..."}
-                          <span className="ml-2 inline-flex items-center gap-1 align-middle">
-                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#94a3b8]" />
-                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#94a3b8] [animation-delay:120ms]" />
-                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#94a3b8] [animation-delay:240ms]" />
-                          </span>
-                        </p>
+                        {streamText ? (
+                          <p className="relative">
+                            {streamText}
+                            <span className="ml-2 inline-flex items-center gap-1 align-middle">
+                              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#94a3b8]" />
+                              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#94a3b8] [animation-delay:120ms]" />
+                              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#94a3b8] [animation-delay:240ms]" />
+                            </span>
+                          </p>
+                        ) : null}
                       </div>
                     </article>
                   ) : null}
