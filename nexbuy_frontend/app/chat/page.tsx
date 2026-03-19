@@ -54,7 +54,7 @@ type DraftAttachment = {
 const WORKSPACE_STORAGE_KEY = "nexbuy.chat.workspace";
 const CHAT_HISTORY_REFRESH_EVENT = "nexbuy.chat.history.updated";
 const LEGACY_AI_STATUS = "AI is analyzing your request...";
-const AGENT_ANALYZING_STATUS = "Agent is analyzing your request...";
+const AGENT_ANALYZING_STATUS = "Working on it...";
 const QUICK_FOCUS_TAGS = [
   { label: "Home & Furniture", icon: "🛋️" },
   { label: "Best Price", icon: "⚡" },
@@ -535,6 +535,23 @@ export default function ChatWorkspacePage() {
     };
   }, [bootstrapNonce, isWorkspaceHydrated, requestedSessionId, sessionId]);
 
+  function handleExpiredChatAuth(contentToRestore?: string) {
+    clearAccessToken();
+    setIsAuthenticated(false);
+    setIsSending(false);
+    setAuthOpen(true);
+    setError("Your sign-in session expired. Please sign in again to continue.");
+    setStatus("Sign back in to keep going.");
+
+    if (contentToRestore) {
+      setPrompt(contentToRestore);
+      window.requestAnimationFrame(() => {
+        resizeComposer(heroTextareaRef.current);
+        resizeComposer(composerTextareaRef.current);
+      });
+    }
+  }
+
   async function submitPrompt(content: string, options?: { replaceMessageId?: string | null }) {
     const token = readAccessToken();
     if (!token) {
@@ -548,6 +565,10 @@ export default function ChatWorkspacePage() {
         activeSessionId = await createChatSession(readSelectedProjectId() || undefined);
         setSessionId(activeSessionId);
       } catch (sessionError) {
+        if (isUnauthorizedAuthError(sessionError)) {
+          handleExpiredChatAuth(content);
+          return;
+        }
         const message =
           sessionError instanceof Error ? sessionError.message : "Could not create chat session.";
         setError(message);
@@ -686,6 +707,10 @@ export default function ChatWorkspacePage() {
         }
       });
     } catch (sendError) {
+      if (isUnauthorizedAuthError(sendError)) {
+        handleExpiredChatAuth(content);
+        return;
+      }
       const message = sendError instanceof Error ? sendError.message : "Could not send message.";
       if (message.includes("Chat session not found")) {
         clearSavedWorkspace();
@@ -826,7 +851,7 @@ export default function ChatWorkspacePage() {
         {
           id: "assistant-draft",
           role: "assistant" as const,
-          content: streamText || AGENT_ANALYZING_STATUS,
+          content: streamText || "Working through the request and preparing the next reply...",
           createdAt: new Date().toISOString(),
         },
       ]
@@ -854,15 +879,9 @@ export default function ChatWorkspacePage() {
     return deduped;
   }, [timeline]);
   const hasConversation = renderedMessages.length > 0;
-  const visibleThinkingSteps = thinkingExpanded ? displayedTimeline.slice().reverse() : displayedTimeline.slice(-2).reverse();
-  const thinkingSummary =
-    displayedTimeline.length === 0
-      ? "Checking your request and preparing the next response."
-      : displayedTimeline
-          .slice()
-          .reverse()
-          .map(({ friendly }) => friendly.title)
-          .join(" · ");
+  const visibleThinkingSteps = thinkingExpanded ? displayedTimeline : displayedTimeline.slice(0, 1);
+  const currentThinkingTitle =
+    displayedTimeline.length === 0 ? "Working through your request" : displayedTimeline[0]?.friendly.title ?? "Working through your request";
 
   function formatElapsed(seconds: number) {
     if (seconds < 60) {
@@ -911,19 +930,13 @@ export default function ChatWorkspacePage() {
           >
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-3">
-                <div className="relative flex h-7 w-7 items-center justify-center text-[#526072]">
-                  {isSending ? (
-                    <>
-                      <span className="absolute h-4.5 w-4.5 rounded-full border-[1.5px] border-[#c2d3e5] border-t-[#1f4f78] animate-spin" />
-                      <span className="relative h-1.5 w-1.5 rounded-full bg-[#1f4f78]" />
-                    </>
-                  ) : (
-                    <span className="relative text-sm">✓</span>
-                  )}
-                </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-[#101828]">
+                    <p
+                      className={`bg-[linear-gradient(90deg,#0f172a_0%,#1f4f78_38%,#38bdf8_52%,#1f4f78_68%,#0f172a_100%)] bg-[length:220%_100%] bg-clip-text text-sm font-medium text-transparent ${
+                        isSending ? "animate-[thinking-shimmer_2.8s_linear_infinite]" : ""
+                      }`}
+                    >
                       {isSending ? "Thinking" : "Thought through your request"}
                     </p>
                     {isSending ? (
@@ -934,7 +947,9 @@ export default function ChatWorkspacePage() {
                       </div>
                     ) : null}
                   </div>
-                  <p className="mt-0.5 truncate text-sm text-[#667085]">{thinkingSummary}</p>
+                  <p className="mt-0.5 truncate text-sm text-[#667085]">
+                    {thinkingExpanded ? "Open to review the full working trail." : currentThinkingTitle}
+                  </p>
                 </div>
               </div>
             </div>
@@ -947,16 +962,28 @@ export default function ChatWorkspacePage() {
                     ? formatElapsed(lastRunElapsedSec)
                     : ""}
               </span>
-              <span className={`text-sm text-[#98a2b3] transition ${thinkingExpanded ? "rotate-180" : ""}`}>⌄</span>
+              <span
+                className={`inline-flex items-center justify-center text-[#98a2b3] transition ${thinkingExpanded ? "rotate-180" : ""}`}
+              >
+                <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <path
+                    d="m6.75 9.75 5.25 5.25 5.25-5.25"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.8"
+                  />
+                </svg>
+              </span>
             </div>
           </button>
 
-          <div className={`overflow-hidden transition-all duration-300 ${thinkingExpanded ? "max-h-[340px] opacity-100" : "max-h-0 opacity-0"}`}>
+          <div className={`overflow-hidden transition-all duration-300 ${thinkingExpanded ? "max-h-[420px] opacity-100" : "max-h-0 opacity-0"}`}>
             <div className="pl-10 pr-1 pb-3">
               <div className="mb-2 h-px bg-[linear-gradient(90deg,rgba(217,225,235,0)_0%,rgba(217,225,235,0.95)_12%,rgba(217,225,235,0.95)_88%,rgba(217,225,235,0)_100%)]" />
               <div className="space-y-3">
               {visibleThinkingSteps.map(({ event, friendly }, index) => {
-                const isLatest = index === visibleThinkingSteps.length - 1;
+                const isLatest = index === 0;
                 return (
                   <div className="flex items-start gap-3" key={event.id}>
                       <div className="relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center text-[11px] font-semibold text-[#526072]">
@@ -1206,6 +1233,16 @@ export default function ChatWorkspacePage() {
       }}
       onNewConversation={handleNewConversation}
     >
+      <style jsx global>{`
+        @keyframes thinking-shimmer {
+          0% {
+            background-position: 100% 50%;
+          }
+          100% {
+            background-position: -100% 50%;
+          }
+        }
+      `}</style>
       <div className="h-full">
         <section className="flex min-h-0 h-full flex-col">
             <div
