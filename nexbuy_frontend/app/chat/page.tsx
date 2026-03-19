@@ -1325,30 +1325,48 @@ export default function ChatWorkspacePage() {
                       style={{ fontFamily: "'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif" }}
                     >
                       {message.role === "user" ? (
-                        <div className="flex max-w-[72%] flex-col items-end gap-2">
+                        <div
+                          className={`flex flex-col items-end gap-2 ${
+                            editingMessageId === message.id ? "w-full max-w-[760px]" : "max-w-[72%]"
+                          }`}
+                        >
                           {editingMessageId === message.id ? (
-                            <div className="w-full rounded-[24px] border border-[#d8dee8] bg-[#f7f8fa] px-4 py-3 shadow-[0_10px_30px_rgba(148,163,184,0.12)]">
+                            <div className="w-full rounded-[28px] border border-[#d8dee8] bg-[#f7f8fa] px-4 py-3 shadow-[0_10px_30px_rgba(148,163,184,0.12)]">
                               <textarea
-                                className="min-h-[84px] w-full resize-none border-none bg-transparent text-[15px] leading-7 text-[#111827] outline-none placeholder:text-[#98a2b3]"
+                                className="min-h-[34px] w-full resize-none border-none bg-transparent text-[15px] leading-6 text-[#111827] outline-none placeholder:text-[#98a2b3]"
                                 onChange={(event) => setEditingMessageContent(event.target.value)}
-                                rows={3}
+                                rows={1}
                                 value={editingMessageContent}
                               />
-                              <div className="mt-3 flex items-center justify-end gap-2">
+                              <div className="mt-2 flex items-center justify-end gap-2">
                                 <button
-                                  className="inline-flex items-center rounded-full border border-[#d5dbe5] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#475467] transition hover:border-[#c6d3e0] hover:bg-[#f8fafc]"
+                                  className="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium text-[#667085] transition hover:bg-white hover:text-[#344054]"
                                   onClick={handleCancelEditMessage}
                                   type="button"
                                 >
                                   Cancel
                                 </button>
                                 <button
-                                  className="inline-flex items-center rounded-full bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-3.5 py-1.5 text-xs font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                                   disabled={!editingMessageContent.trim() || isSending}
                                   onClick={() => handleSubmitEditedMessage(message.id)}
                                   type="button"
                                 >
-                                  Send
+                                  <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                    <path
+                                      d="M12 5v11"
+                                      stroke="currentColor"
+                                      strokeLinecap="round"
+                                      strokeWidth="1.9"
+                                    />
+                                    <path
+                                      d="m7.5 9.5 4.5-4.5 4.5 4.5"
+                                      stroke="currentColor"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="1.9"
+                                    />
+                                  </svg>
                                 </button>
                               </div>
                             </div>
