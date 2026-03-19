@@ -71,6 +71,9 @@ export default function WorkspaceShell({
   const [selectedHistoryId, setSelectedHistoryId] = useState("current");
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [projectModalOpen, setProjectModalOpen] = useState(false);
+  const [newProjectTitle, setNewProjectTitle] = useState("");
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [remoteHistoryItems, setRemoteHistoryItems] = useState<HistoryItem[]>([]);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const authToken = useSyncExternalStore(
@@ -226,15 +229,30 @@ export default function WorkspaceShell({
       onOpenAuth();
       return;
     }
+    setNewProjectTitle("");
+    setProjectModalOpen(true);
+  }
 
-    void createProject({
-      title: `New project ${projects.length + 1}`,
-      summary: "Untitled shopping workspace",
-    }).then((nextProject) => {
+  async function handleConfirmCreateProject() {
+    const title = newProjectTitle.trim();
+    if (!title) {
+      return;
+    }
+
+    try {
+      setIsCreatingProject(true);
+      const nextProject = await createProject({
+        title,
+        summary: "Untitled shopping workspace",
+      });
       setProjects((current) => [nextProject, ...current]);
       saveSelectedProjectId(nextProject.id);
+      setProjectModalOpen(false);
+      setNewProjectTitle("");
       router.push("/chat");
-    });
+    } finally {
+      setIsCreatingProject(false);
+    }
   }
 
   const avatarLabel = useMemo(() => {
@@ -269,17 +287,10 @@ export default function WorkspaceShell({
                 </button>
 
                 <div className="space-y-2 pt-3">
-                  <div className="flex items-center justify-between px-3 pb-1">
+                  <div className="px-3 pb-1">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#98a2b3]">
                       Projects
                     </span>
-                    <button
-                      className="inline-flex h-7 items-center justify-center rounded-full px-2.5 text-[11px] font-semibold text-[#486480] transition hover:bg-[#eef4fb] hover:text-[#123b5f]"
-                      onClick={handleNewProject}
-                      type="button"
-                    >
-                      + New project
-                    </button>
                   </div>
                   <div className="space-y-1">
                     {displayProjects.map((project) => (
@@ -309,6 +320,15 @@ export default function WorkspaceShell({
                         </div>
                       </button>
                     ))}
+                  </div>
+                  <div className="pt-1">
+                    <button
+                      className="inline-flex h-9 w-full items-center justify-center rounded-[16px] border border-[#dce5ef] bg-[#f8fbff] text-sm font-semibold text-[#486480] transition hover:border-[#bfd4ec] hover:bg-[#eef4fb] hover:text-[#123b5f]"
+                      onClick={handleNewProject}
+                      type="button"
+                    >
+                      + New project
+                    </button>
                   </div>
                 </div>
 
@@ -444,6 +464,63 @@ export default function WorkspaceShell({
           <div className="min-h-0 overflow-y-auto">{children}</div>
         </div>
       </div>
+      {projectModalOpen ? (
+        <div
+          aria-modal="true"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-[rgba(15,23,42,0.28)] px-4 backdrop-blur-sm"
+          onClick={() => {
+            if (!isCreatingProject) {
+              setProjectModalOpen(false);
+            }
+          }}
+          role="dialog"
+        >
+          <div
+            className="w-full max-w-[420px] rounded-[28px] border border-[#dbe3ed] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.16)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#7c8da5]">
+              New project
+            </p>
+            <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-[#101828]">
+              Name this project
+            </h2>
+            <p className="mt-2 text-sm leading-7 text-[#667085]">
+              Give this workspace a clear name so later chats, packages, and negotiations stay grouped together.
+            </p>
+            <label className="mt-5 block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[#7c8da5]">
+                Project name
+              </span>
+              <input
+                className="h-12 w-full rounded-[18px] border border-[#dce5ef] bg-white px-4 text-sm text-[#101828] outline-none transition placeholder:text-[#98a2b3] focus:border-[#93c5fd] focus:ring-4 focus:ring-[#dbeafe]"
+                maxLength={255}
+                onChange={(event) => setNewProjectTitle(event.target.value)}
+                placeholder="Living room refresh"
+                type="text"
+                value={newProjectTitle}
+              />
+            </label>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                className="inline-flex h-11 items-center justify-center rounded-[16px] border border-[#dce5ef] bg-white px-4 text-sm font-semibold text-[#344054] transition hover:bg-[#f8fafc]"
+                onClick={() => setProjectModalOpen(false)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="inline-flex h-11 items-center justify-center rounded-[16px] bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.14)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={!newProjectTitle.trim() || isCreatingProject}
+                onClick={() => void handleConfirmCreateProject()}
+                type="button"
+              >
+                {isCreatingProject ? "Creating..." : "Create project"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
