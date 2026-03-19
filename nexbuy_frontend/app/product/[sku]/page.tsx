@@ -19,12 +19,20 @@ function formatMoney(value: number | null | undefined, currencySymbol = "$") {
 
 function getPricePairs(product: ProductDetail) {
   const currentPrice = product.sale_price ?? product.final_price ?? product.activity_price ?? null;
+  const originalCandidates = [product.original_price, product.compare_price, product.tag_price].filter(
+    (value): value is number => typeof value === "number",
+  );
   const originalPrice =
-    product.original_price ??
-    product.compare_price ??
-    product.tag_price ??
-    (typeof currentPrice === "number" ? currentPrice : null);
+    typeof currentPrice === "number"
+      ? originalCandidates.filter((value) => value > currentPrice).sort((a, b) => b - a)[0] ?? currentPrice
+      : originalCandidates.sort((a, b) => b - a)[0] ?? null;
   return { currentPrice, originalPrice };
+}
+
+function buildStarRating(value: number) {
+  const safeValue = Math.max(0, Math.min(5, value));
+  const filled = Math.round(safeValue);
+  return Array.from({ length: 5 }, (_, index) => (index < filled ? "★" : "☆")).join("");
 }
 
 export default function ProductDetailPage() {
@@ -265,17 +273,26 @@ export default function ProductDetailPage() {
                       <h1 className="text-[1.75rem] font-black tracking-[-0.04em] text-[#101828] xl:text-[1.95rem]">
                         {product.title}
                       </h1>
-                      <button
-                        aria-label={favoriteSkuSet.has(product.sku_id_default) ? "Remove from likes" : "Add to likes"}
-                        className={`inline-flex h-10 w-10 items-center justify-center text-[28px] leading-none transition ${
-                          favoriteSkuSet.has(product.sku_id_default) ? "text-[#dc2626]" : "text-[#111827]"
-                        }`}
-                        disabled={isUpdatingFavorite}
-                        onClick={() => void handleToggleFavorite()}
-                        type="button"
-                      >
-                        <span aria-hidden="true">{favoriteSkuSet.has(product.sku_id_default) ? "♥" : "♡"}</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          aria-label="Share by email"
+                          className="inline-flex h-10 w-10 items-center justify-center text-[24px] leading-none text-[#111827] transition hover:-translate-y-0.5"
+                          type="button"
+                        >
+                          ✉
+                        </button>
+                        <button
+                          aria-label={favoriteSkuSet.has(product.sku_id_default) ? "Remove from likes" : "Add to likes"}
+                          className={`inline-flex h-10 w-10 items-center justify-center text-[28px] leading-none transition ${
+                            favoriteSkuSet.has(product.sku_id_default) ? "text-[#dc2626]" : "text-[#111827]"
+                          }`}
+                          disabled={isUpdatingFavorite}
+                          onClick={() => void handleToggleFavorite()}
+                          type="button"
+                        >
+                          <span aria-hidden="true">{favoriteSkuSet.has(product.sku_id_default) ? "♥" : "♡"}</span>
+                        </button>
+                      </div>
                     </div>
                     
                     {product.sub_title ? (
@@ -283,22 +300,27 @@ export default function ProductDetailPage() {
                     ) : null}
 
                     <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-[#667085]">
-                      {typeof product.rating_value === "number" ? <span>{product.rating_value.toFixed(1)} rating</span> : null}
-                      {typeof product.review_count === "number" ? <span>{product.review_count.toLocaleString()} reviews</span> : null}
+                      {typeof product.rating_value === "number" ? (
+                        <span className="inline-flex items-center gap-2">
+                          <span className="text-[#f59e0b]">{buildStarRating(product.rating_value)}</span>
+                          <span>{product.rating_value.toFixed(1)} rating</span>
+                        </span>
+                      ) : null}
                       {product.stock_status_text ? <span>{product.stock_status_text}</span> : null}
-                      {product.category_path.length > 0 ? <span>{product.category_path.at(-1)}</span> : null}
                     </div>
 
                     <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
                       <div>
-                        {typeof originalPrice === "number" && typeof currentPrice === "number" && originalPrice > currentPrice ? (
-                          <p className="text-sm font-medium text-[#98a2b3] line-through">
-                            {formatMoney(originalPrice, product.currency_symbol ?? "$")}
+                        <div className="flex flex-wrap items-end gap-3">
+                          {typeof originalPrice === "number" && typeof currentPrice === "number" && originalPrice > currentPrice ? (
+                            <p className="self-end pb-1 text-lg font-medium text-[#98a2b3] line-through">
+                              {formatMoney(originalPrice, product.currency_symbol ?? "$")}
+                            </p>
+                          ) : null}
+                          <p className="self-end leading-none text-[2.2rem] font-black tracking-[-0.05em] text-[#123b5f]">
+                            {formatMoney(currentPrice, product.currency_symbol ?? "$")}
                           </p>
-                        ) : null}
-                        <p className="mt-1 text-[2.2rem] font-black tracking-[-0.05em] text-[#123b5f]">
-                          {formatMoney(currentPrice, product.currency_symbol ?? "$")}
-                        </p>
+                        </div>
                         {savedAmount > 0 ? (
                           <p className="mt-2 text-sm font-semibold text-[#2563eb]">
                             Save {formatMoney(savedAmount, product.currency_symbol ?? "$")}
@@ -316,13 +338,8 @@ export default function ProductDetailPage() {
                       </div>
                     </div>
 
-                    {product.discount_text || typeof product.discount_percent === "number" ? (
-                      <p className="mt-4 text-sm font-semibold text-[#123b5f]">
-                        {product.discount_text || `${product.discount_percent}% off`}
-                      </p>
-                    ) : null}
                     {product.activity_tip_text ? (
-                      <p className="mt-3 text-sm leading-6 text-[#475467]">{product.activity_tip_text}</p>
+                      <p className="mt-4 text-sm leading-6 text-[#475467]">{product.activity_tip_text}</p>
                     ) : null}
                   </div>
 
@@ -336,16 +353,20 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
-              <div className="rounded-[32px] border border-[#dde5ef] bg-white p-6 shadow-[0_22px_60px_rgba(148,163,184,0.1)]">
+              <div className="border-t border-[#e5ebf2] pt-8">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8b97a8]">Specifications</p>
                 {Object.keys(product.specs).length === 0 ? (
                   <p className="mt-4 text-sm leading-7 text-[#667085]">No structured specifications are available for this product.</p>
                 ) : (
-                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="mt-5 grid gap-x-10 gap-y-0 md:grid-cols-2">
                     {Object.entries(product.specs).map(([label, value]) => (
-                      <div className="rounded-[20px] border border-[#edf2f7] bg-[#fbfdff] px-4 py-3" key={label}>
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#98a2b3]">{label}</p>
-                        <p className="mt-2 text-sm leading-6 text-[#101828]">{value}</p>
+                      <div className="border-b border-[#edf2f7] py-4" key={label}>
+                        <div className="flex items-start justify-between gap-6">
+                          <p className="max-w-[42%] text-[11px] font-semibold uppercase tracking-[0.16em] text-[#98a2b3]">
+                            {label}
+                          </p>
+                          <p className="max-w-[58%] text-right text-sm leading-6 text-[#101828]">{value}</p>
+                        </div>
                       </div>
                     ))}
                   </div>
