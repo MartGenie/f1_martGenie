@@ -18,6 +18,7 @@ import {
   subscribeChatStream,
   type TimelineEvent,
 } from "@/lib/chat-api";
+import { clearCurrentOrder, setOrderCheckout } from "@/lib/order-store";
 import {
   buildMemoryPayloadFromAnswers,
   fetchMemoryProfile,
@@ -283,6 +284,7 @@ export default function ChatWorkspacePage() {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingMessageContent, setEditingMessageContent] = useState("");
+  const [embeddedExpandedPlanIds, setEmbeddedExpandedPlanIds] = useState<Record<string, string[]>>({});
   const [status, setStatus] = useState("Preparing workspace...");
   const [error, setError] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -693,15 +695,6 @@ export default function ChatWorkspacePage() {
           setIsSending(false);
           setStatus("Done. You can refine requirements or ask for alternatives.");
           notifyHistoryRefresh();
-          if (plansRef.current.length > 0) {
-            window.setTimeout(() => {
-              router.push(
-                packageSnapshotIdRef.current
-                  ? `/recommendations?snapshot=${encodeURIComponent(packageSnapshotIdRef.current)}`
-                  : "/recommendations",
-              );
-            }, 180);
-          }
         }
       });
     } catch (sendError) {
@@ -850,7 +843,7 @@ export default function ChatWorkspacePage() {
         {
           id: "assistant-draft",
           role: "assistant" as const,
-          content: streamText || "Working through the request and preparing the next reply...",
+          content: streamText,
           createdAt: new Date().toISOString(),
         },
       ]
@@ -1019,6 +1012,175 @@ export default function ChatWorkspacePage() {
           </div>
         </div>
       </article>
+    );
+  }
+
+  function handleToggleEmbeddedPlan(snapshotId: string, planId: string) {
+    setEmbeddedExpandedPlanIds((current) => {
+      const currentExpanded = current[snapshotId] ?? [];
+      const isExpanded = currentExpanded.includes(planId);
+      return {
+        ...current,
+        [snapshotId]: isExpanded
+          ? currentExpanded.filter((id) => id !== planId)
+          : [...currentExpanded, planId],
+      };
+    });
+  }
+
+  function handleEmbeddedOrder(plan: PlanOption) {
+    const subtotal = plan.items.reduce((sum, item) => sum + item.price, 0);
+    setOrderCheckout({
+      source: "package",
+      packageId: plan.id,
+      packageTitle: plan.title,
+      summary: plan.explanation || plan.summary,
+      items: plan.items.map((item) => ({
+        sku: item.sku,
+        title: item.title,
+        price: item.price,
+        quantity: 1,
+        imageUrl: item.imageUrl ?? null,
+      })),
+      subtotal,
+      negotiatedSavings: 0,
+    });
+    clearCurrentOrder();
+    router.push("/order");
+  }
+
+  function handleEmbeddedNegotiation(plan: PlanOption, item: PlanOption["items"][number]) {
+    router.push(
+      `/negotiation?sku=${encodeURIComponent(item.sku)}&title=${encodeURIComponent(item.title)}&price=${encodeURIComponent(String(item.price))}&imageUrl=${encodeURIComponent(item.imageUrl ?? "")}&planId=${encodeURIComponent(plan.id)}&planTitle=${encodeURIComponent(plan.title)}&sessionId=${encodeURIComponent(sessionId ?? "")}`,
+    );
+  }
+
+  function renderPackageResultBlock(snapshotId: string) {
+    const snapshotPlans = packageSnapshots[snapshotId];
+    if (!snapshotPlans || snapshotPlans.length === 0) {
+      return null;
+    }
+    const expandedPlanIds = embeddedExpandedPlanIds[snapshotId] ?? [snapshotPlans[0]?.id ?? ""];
+
+    return (
+      <section className="mt-5 overflow-hidden rounded-[28px] border border-[#dde5ef] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] shadow-[0_18px_48px_rgba(148,163,184,0.10)]">
+        <div className="border-b border-[#e8edf3] px-5 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8b97a8]">
+            Package results
+          </p>
+          <h3 className="mt-2 text-lg font-bold tracking-[-0.03em] text-[#101828]">
+            {snapshotPlans.length} package options ready
+          </h3>
+        </div>
+
+        <div className="p-4">
+          <div className="space-y-3">
+            {snapshotPlans.map((plan) => {
+              const isExpanded = expandedPlanIds.includes(plan.id);
+              return (
+                <div
+                  className={`overflow-hidden rounded-[22px] border transition ${
+                    isExpanded
+                      ? "border-[#bfdbfe] bg-[linear-gradient(180deg,#eff6ff_0%,#dbeafe_100%)]"
+                      : "border-[#e5ebf3] bg-white"
+                  }`}
+                  key={plan.id}
+                >
+                  <button
+                    className="block w-full px-4 py-4 text-left transition hover:bg-[#f8fafc]/70"
+                    onClick={() => handleToggleEmbeddedPlan(snapshotId, plan.id)}
+                    type="button"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-[#101828]">{plan.title}</p>
+                        <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#667085]">
+                          {plan.explanation || plan.summary}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="rounded-full bg-white/80 px-3 py-1.5 text-sm font-semibold text-[#123b5f]">
+                          ${plan.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                        </div>
+                        <span
+                          className={`inline-flex items-center justify-center text-[#98a2b3] transition ${isExpanded ? "rotate-180" : ""}`}
+                        >
+                          <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                            <path
+                              d="m6.75 9.75 5.25 5.25 5.25-5.25"
+                              stroke="currentColor"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="1.8"
+                            />
+                          </svg>
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+
+                  {isExpanded ? (
+                    <div className="border-t border-[#dce8f5] px-4 py-5">
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        {plan.items.map((item) => (
+                          <article
+                            className="group relative z-0 flex flex-1 flex-col overflow-hidden rounded-[24px] border border-[#dbe5f0] bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(244,248,252,0.96)_100%)] shadow-[0_18px_45px_rgba(148,163,184,0.12)] transition duration-300 hover:-translate-y-1 hover:border-[#bfd3ea] hover:shadow-[0_24px_55px_rgba(96,165,250,0.14)]"
+                            key={`${plan.id}-${item.sku}`}
+                          >
+                            <div className="relative h-44 overflow-hidden bg-[linear-gradient(180deg,#edf3f9_0%,#e2e8f0_100%)]">
+                              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(191,219,254,0.45),transparent_40%),linear-gradient(180deg,transparent_35%,rgba(15,23,42,0.03)_100%)]" />
+                              {item.imageUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  alt={item.title}
+                                  className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                                  src={item.imageUrl}
+                                />
+                              ) : (
+                                <div className="h-full w-full bg-[linear-gradient(135deg,#dbeafe,#f8fafc)]" />
+                              )}
+                            </div>
+                            <div className="flex flex-1 flex-col p-5">
+                              <h5 className="line-clamp-2 min-h-[3.5rem] text-[17px] font-black leading-7 tracking-[-0.03em] text-[#0f172a]">
+                                {item.title}
+                              </h5>
+                              <p className="mt-3 line-clamp-3 min-h-[5.25rem] text-sm leading-7 text-[#475467]">
+                                {item.reason}
+                              </p>
+                              <div className="mt-auto flex items-center justify-between gap-3 pt-5">
+                                <p className="text-xl font-black tracking-[-0.03em] text-[#0f172a]">
+                                  ${item.price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                </p>
+                                <button
+                                  className="inline-flex shrink-0 items-center rounded-full border border-[#dce5ef] bg-[#f8fbff] px-3 py-1.5 text-xs font-semibold text-[#486480] transition hover:border-[#bfd4ec] hover:bg-[#eef4fb] hover:text-[#123b5f]"
+                                  onClick={() => handleEmbeddedNegotiation(plan, item)}
+                                  type="button"
+                                >
+                                  Negotiate
+                                </button>
+                              </div>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+
+                      <div className="mt-5 flex justify-end border-t border-[#e8edf3] pt-4">
+                        <button
+                          className="inline-flex h-11 items-center justify-center rounded-[16px] bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.14)] transition hover:brightness-105"
+                          onClick={() => handleEmbeddedOrder(plan)}
+                          type="button"
+                        >
+                          Place order
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
     );
   }
 
@@ -1451,19 +1613,9 @@ export default function ChatWorkspacePage() {
                             <p>{message.content}</p>
                           </div>
                         )}
-                        {message.role === "assistant" && message.packageSnapshotId ? (
-                          <button
-                            className="mt-4 inline-flex items-center rounded-full border border-[#d6e4f5] bg-white px-3 py-1.5 text-xs font-semibold text-[#1f4f78] transition hover:border-[#bfd4ec] hover:bg-[#eef6ff]"
-                            onClick={() =>
-                              router.push(
-                                `/recommendations?snapshot=${encodeURIComponent(message.packageSnapshotId as string)}`,
-                              )
-                            }
-                            type="button"
-                          >
-                            View packages
-                          </button>
-                        ) : null}
+                        {message.role === "assistant" && message.packageSnapshotId
+                          ? renderPackageResultBlock(message.packageSnapshotId)
+                          : null}
                       </article>
                     </div>
                   ))}

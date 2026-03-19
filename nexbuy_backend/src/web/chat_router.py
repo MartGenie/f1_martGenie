@@ -645,6 +645,7 @@ async def stream_session(session_id: str, task_id: str = Query(...)) -> Streamin
                 "role": "assistant",
                 "content": assistant_text,
                 "createdAt": _now_iso(),
+                "packageSnapshotId": package_snapshot_id,
             }
             session["messages"].append(assistant_message)
             if user_id_raw:
