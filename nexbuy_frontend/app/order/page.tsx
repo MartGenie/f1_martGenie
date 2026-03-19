@@ -64,23 +64,14 @@ function getOrderBasePath(source: OrderCheckoutContext["source"]) {
   return "/chat";
 }
 
-function getBackLabel(source: OrderCheckoutContext["source"]) {
-  if (source === "negotiation") {
-    return "Back to Negotiation";
-  }
-  if (source === "plaza") {
-    return "Back to Plaza";
-  }
-  if (source === "favorites") {
-    return "Back to My Likes";
-  }
-  return "Back to Chat";
+function getBackLabel() {
+  return "Back";
 }
 
 function ProgressDot(props: { done: boolean; active: boolean; icon: string }) {
   if (props.done) {
     return (
-      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#10b981] text-base font-black text-white shadow-[0_10px_24px_rgba(16,185,129,0.22)]">
+      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1d4ed8] text-base font-black text-white shadow-[0_10px_24px_rgba(29,78,216,0.22)]">
         ✓
       </span>
     );
@@ -88,8 +79,8 @@ function ProgressDot(props: { done: boolean; active: boolean; icon: string }) {
 
   if (props.active) {
     return (
-      <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-[#cfeadf] bg-[#ecfdf5] text-sm text-[#10b981] shadow-[0_8px_20px_rgba(16,185,129,0.12)]">
-        <span className="pointer-events-none absolute h-5 w-5 animate-spin rounded-full border-2 border-[#10b981] border-t-transparent" />
+      <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-[#dbeafe] bg-[#eff6ff] text-sm text-[#1d4ed8] shadow-[0_8px_20px_rgba(29,78,216,0.12)]">
+        <span className="pointer-events-none absolute h-5 w-5 animate-spin rounded-full border-2 border-[#1d4ed8] border-t-transparent" />
         <span className="opacity-0">{props.icon}</span>
       </span>
     );
@@ -145,7 +136,7 @@ export default function OrderPage() {
   const savings = checkout?.negotiatedSavings ?? 0;
   const totalAmount = subtotal + shippingFee;
   const backHref = checkout ? getOrderBasePath(checkout.source) : "/chat";
-  const backLabel = checkout ? getBackLabel(checkout.source) : "Back";
+  const backLabel = checkout ? getBackLabel() : "Back";
   const itemCount = useMemo(
     () => checkout?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0,
     [checkout],
@@ -201,13 +192,13 @@ export default function OrderPage() {
                   className="inline-flex h-12 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#111827_0%,#1f2937_100%)] px-6 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,0.16)] transition hover:brightness-105"
                   href="/chat"
                 >
-                  Back to chat
+                  Back
                 </Link>
               </div>
             </div>
           ) : currentOrder ? (
             <div className="mx-auto max-w-[680px] space-y-4">
-              <div className="rounded-[24px] bg-[linear-gradient(180deg,#17b889_0%,#12a37f_100%)] px-5 py-5 text-white shadow-[0_18px_46px_rgba(16,185,129,0.2)]">
+              <div className="rounded-[24px] bg-[linear-gradient(180deg,#123b5f_0%,#1d4ed8_100%)] px-5 py-5 text-white shadow-[0_18px_46px_rgba(29,78,216,0.2)]">
                 <div className="mx-auto flex max-w-[320px] flex-col items-center text-center">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/12">
                     <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white text-xs font-black">
@@ -244,7 +235,7 @@ export default function OrderPage() {
                             {stage.description}
                           </p>
                           {active ? (
-                            <span className="mt-2 inline-flex rounded-full bg-[#dcfce7] px-3 py-1 text-xs font-semibold text-[#059669]">
+                            <span className="mt-2 inline-flex rounded-full bg-[#dbeafe] px-3 py-1 text-xs font-semibold text-[#1d4ed8]">
                               In Progress
                             </span>
                           ) : null}
@@ -267,7 +258,7 @@ export default function OrderPage() {
                   {backLabel}
                 </button>
                 <button
-                  className="inline-flex h-12 items-center justify-center rounded-[18px] bg-[linear-gradient(180deg,#0f172a_0%,#1d4ed8_100%)] px-6 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(29,78,216,0.22)] transition hover:brightness-105"
+                  className="inline-flex h-12 items-center justify-center rounded-[18px] bg-[linear-gradient(180deg,#123b5f_0%,#2563eb_100%)] px-6 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(37,99,235,0.2)] transition hover:brightness-105"
                   onClick={() => {
                     clearOrderCheckout();
                     clearCurrentOrder();
