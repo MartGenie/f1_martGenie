@@ -273,7 +273,7 @@ export default function FavoritesPage() {
                         className="overflow-hidden rounded-[28px] border border-[#dde5ef] bg-white shadow-[0_16px_36px_rgba(148,163,184,0.12)]"
                         key={item.sku_id_default}
                       >
-                        <Link className="block" href={`/product/${encodeURIComponent(item.sku_id_default)}`}>
+                        <Link className="block" href={`/product/${encodeURIComponent(item.sku_id_default)}?from=favorites`}>
                           {item.image_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img alt={item.title} className="h-56 w-full object-cover" src={item.image_url} />

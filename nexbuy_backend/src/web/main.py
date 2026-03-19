@@ -24,6 +24,7 @@ from .projects.models import ensure_chat_project_schema
 from .projects.router import router as projects_router
 from .profile import models as _profile_models  # noqa: F401
 from .profile.router import router as profile_router
+from .products import models as _product_models  # noqa: F401
 from .products.router import router as products_router
 from .share_router import router as share_router
 

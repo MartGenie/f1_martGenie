@@ -1,10 +1,20 @@
+import uuid
 from collections.abc import Sequence
 
 from fastapi import HTTPException
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .schema import ProductDetailOut
+from src.web.auth.models import User
+from src.web.products.models import ProductReviewLikeRecord, ProductReviewRecord
+
+from .schema import (
+    ProductDetailOut,
+    ProductReviewCreateIn,
+    ProductReviewItem,
+    ProductReviewLikeOut,
+    ProductReviewListOut,
+)
 
 
 def _to_float(value: object | None) -> float | None:
@@ -126,3 +136,159 @@ async def get_product_detail(session: AsyncSession, sku_id_default: str) -> Prod
         product_url=str(row.get("product_url")).strip() if row.get("product_url") else None,
         canonical_url=str(row.get("canonical_url")).strip() if row.get("canonical_url") else None,
     )
+
+
+def _mask_user_display(user: User) -> str:
+    display = (user.email or "User").strip()
+    if "@" in display:
+        local = display.split("@", 1)[0].strip()
+        if len(local) >= 2:
+            return f"{local[0].upper()}. {local[1:].capitalize()}"
+        return f"{local[:1].upper()}."
+    if len(display) >= 2:
+        return f"{display[0].upper()}. {display[1:]}"
+    return display or "User"
+
+
+def _product_review_item_from_record(
+    record: ProductReviewRecord,
+    *,
+    current_user_id: uuid.UUID | None,
+    liked_review_ids: set[uuid.UUID],
+) -> ProductReviewItem:
+    return ProductReviewItem(
+        id=record.id,
+        user_id=record.user_id,
+        user_display_masked=record.user_display_masked,
+        review_text=record.review_text,
+        rating=int(record.rating or 5),
+        image_urls=list(record.image_urls or []),
+        likes_count=int(record.likes_count or 0),
+        can_delete=bool(current_user_id and record.user_id == current_user_id),
+        current_user_liked=record.id in liked_review_ids,
+        created_at=record.created_at,
+    )
+
+
+async def list_product_reviews(
+    session: AsyncSession,
+    *,
+    sku_id_default: str,
+    page: int = 1,
+    page_size: int = 5,
+    current_user: User | None = None,
+) -> ProductReviewListOut:
+    current_user_id = current_user.id if current_user is not None else None
+    liked_review_ids: set[uuid.UUID] = set()
+    if current_user_id is not None:
+        liked_stmt = select(ProductReviewLikeRecord.review_id).where(ProductReviewLikeRecord.user_id == current_user_id)
+        liked_review_ids = set((await session.execute(liked_stmt)).scalars().all())
+
+    total_stmt = select(func.count()).select_from(ProductReviewRecord).where(
+        ProductReviewRecord.sku_id_default == sku_id_default,
+        ProductReviewRecord.is_public.is_(True),
+    )
+    total_count = int((await session.execute(total_stmt)).scalar_one() or 0)
+    offset = max(page - 1, 0) * page_size
+    stmt = (
+        select(ProductReviewRecord)
+        .where(
+            ProductReviewRecord.sku_id_default == sku_id_default,
+            ProductReviewRecord.is_public.is_(True),
+        )
+        .order_by(ProductReviewRecord.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+    )
+    records = (await session.execute(stmt)).scalars().all()
+    return ProductReviewListOut(
+        page=page,
+        page_size=page_size,
+        total_count=total_count,
+        total_pages=max((total_count + page_size - 1) // page_size, 1),
+        items=[
+            _product_review_item_from_record(
+                record,
+                current_user_id=current_user_id,
+                liked_review_ids=liked_review_ids,
+            )
+            for record in records
+        ],
+    )
+
+
+async def create_product_review(
+    session: AsyncSession,
+    *,
+    sku_id_default: str,
+    user: User,
+    payload: ProductReviewCreateIn,
+) -> ProductReviewItem:
+    record = ProductReviewRecord(
+        sku_id_default=sku_id_default,
+        user_id=user.id,
+        user_display_masked=_mask_user_display(user),
+        review_text=payload.review_text.strip(),
+        rating=payload.rating,
+        image_urls=payload.image_urls[:4],
+        likes_count=0,
+        is_public=True,
+    )
+    session.add(record)
+    await session.commit()
+    await session.refresh(record)
+    return ProductReviewItem(
+        id=record.id,
+        user_id=record.user_id,
+        user_display_masked=record.user_display_masked,
+        review_text=record.review_text,
+        rating=record.rating,
+        image_urls=list(record.image_urls or []),
+        likes_count=int(record.likes_count or 0),
+        can_delete=True,
+        current_user_liked=False,
+        created_at=record.created_at,
+    )
+
+
+async def delete_product_review(
+    session: AsyncSession,
+    *,
+    review_id: uuid.UUID,
+    user: User,
+) -> None:
+    record = await session.get(ProductReviewRecord, review_id)
+    if record is None:
+        raise ValueError("Review record not found.")
+    if record.user_id != user.id:
+        raise PermissionError("You can only delete your own review.")
+    await session.delete(record)
+    await session.commit()
+
+
+async def toggle_product_review_like(
+    session: AsyncSession,
+    *,
+    review_id: uuid.UUID,
+    user: User,
+) -> ProductReviewLikeOut:
+    record = await session.get(ProductReviewRecord, review_id)
+    if record is None or not record.is_public:
+        raise ValueError("Review record not found.")
+
+    existing_stmt = select(ProductReviewLikeRecord).where(
+        ProductReviewLikeRecord.review_id == review_id,
+        ProductReviewLikeRecord.user_id == user.id,
+    )
+    existing = (await session.execute(existing_stmt)).scalars().first()
+    if existing is None:
+        session.add(ProductReviewLikeRecord(review_id=review_id, user_id=user.id))
+        record.likes_count = int(record.likes_count or 0) + 1
+        liked = True
+    else:
+        await session.delete(existing)
+        record.likes_count = max(int(record.likes_count or 0) - 1, 0)
+        liked = False
+
+    await session.commit()
+    return ProductReviewLikeOut(likes_count=int(record.likes_count or 0), current_user_liked=liked)

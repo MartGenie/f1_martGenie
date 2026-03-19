@@ -1520,7 +1520,7 @@ export default function ChatWorkspacePage() {
                                 <span aria-hidden="true">{favoriteSkuSet.has(item.sku) ? "♥" : "♡"}</span>
                               </button>
                             </div>
-                            <Link className="block" href={`/product/${encodeURIComponent(item.sku)}`}>
+                            <Link className="block" href={`/product/${encodeURIComponent(item.sku)}?from=chat`}>
                               <div className="relative h-44 overflow-hidden bg-[linear-gradient(180deg,#edf3f9_0%,#e2e8f0_100%)]">
                                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(191,219,254,0.45),transparent_40%),linear-gradient(180deg,transparent_35%,rgba(15,23,42,0.03)_100%)]" />
                                 {item.imageUrl ? (

@@ -1,3 +1,6 @@
+import uuid
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -28,3 +31,35 @@ class ProductDetailOut(BaseModel):
     activity_tip_text: str | None = None
     product_url: str | None = None
     canonical_url: str | None = None
+
+
+class ProductReviewItem(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID | None = None
+    user_display_masked: str
+    review_text: str
+    rating: int = Field(ge=1, le=5)
+    image_urls: list[str] = Field(default_factory=list)
+    likes_count: int = 0
+    can_delete: bool = False
+    current_user_liked: bool = False
+    created_at: datetime
+
+
+class ProductReviewCreateIn(BaseModel):
+    review_text: str = Field(min_length=1, max_length=600)
+    rating: int = Field(default=5, ge=1, le=5)
+    image_urls: list[str] = Field(default_factory=list, max_length=4)
+
+
+class ProductReviewListOut(BaseModel):
+    page: int = 1
+    page_size: int = 5
+    total_count: int = 0
+    total_pages: int = 0
+    items: list[ProductReviewItem] = Field(default_factory=list)
+
+
+class ProductReviewLikeOut(BaseModel):
+    likes_count: int
+    current_user_liked: bool
