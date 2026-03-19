@@ -282,6 +282,7 @@ export default function ChatWorkspacePage() {
   const [error, setError] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [runElapsedSec, setRunElapsedSec] = useState(0);
+  const [thinkingExpanded, setThinkingExpanded] = useState(true);
   const [streamText, setStreamText] = useState("");
   const streamTextRef = useRef("");
   const heroTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -423,6 +424,12 @@ export default function ChatWorkspacePage() {
       setRunElapsedSec(seconds);
     }, 1000);
     return () => window.clearInterval(timer);
+  }, [isSending]);
+
+  useEffect(() => {
+    if (isSending) {
+      setThinkingExpanded(true);
+    }
   }, [isSending]);
 
   useEffect(() => {
@@ -816,6 +823,133 @@ export default function ChatWorkspacePage() {
     return deduped;
   }, [timeline]);
   const hasConversation = renderedMessages.length > 0;
+  const visibleThinkingSteps = thinkingExpanded ? displayedTimeline.slice().reverse() : displayedTimeline.slice(-2).reverse();
+  const thinkingSummary =
+    displayedTimeline.length === 0
+      ? "Checking your request and preparing the next response."
+      : displayedTimeline
+          .slice()
+          .reverse()
+          .map(({ friendly }) => friendly.title)
+          .join(" · ");
+
+  function formatElapsed(seconds: number) {
+    if (seconds < 60) {
+      return `${seconds}s`;
+    }
+
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  }
+
+  function iconForThinkingStep(title: string) {
+    if (title.includes("Understanding") || title.includes("Brief understood")) {
+      return "◔";
+    }
+    if (title.includes("Checking")) {
+      return "◌";
+    }
+    if (title.includes("Searching") || title.includes("Products found")) {
+      return "⌕";
+    }
+    if (title.includes("Building") || title.includes("Packages ready")) {
+      return "◫";
+    }
+    if (title.includes("Done")) {
+      return "✓";
+    }
+    if (title.includes("Something went wrong")) {
+      return "!";
+    }
+    return "·";
+  }
+
+  function renderThinkingBlock() {
+    if (!isSending && displayedTimeline.length === 0) {
+      return null;
+    }
+
+    return (
+      <article className="mx-auto w-full max-w-[760px]">
+        <div className="overflow-hidden">
+          <button
+            className="flex w-full items-start justify-between gap-4 py-2 text-left transition"
+            onClick={() => setThinkingExpanded((current) => !current)}
+            type="button"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-3">
+                <div className="relative flex h-7 w-7 items-center justify-center text-[#526072]">
+                  {isSending ? (
+                    <>
+                      <span className="absolute h-4.5 w-4.5 rounded-full border-[1.5px] border-[#c2d3e5] border-t-[#1f4f78] animate-spin" />
+                      <span className="relative h-1.5 w-1.5 rounded-full bg-[#1f4f78]" />
+                    </>
+                  ) : (
+                    <span className="relative text-sm">✓</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-[#101828]">
+                      {isSending ? "Thinking" : "Thought through your request"}
+                    </p>
+                    {isSending ? (
+                      <div className="flex items-center gap-1">
+                        <span className="h-1 w-1 animate-pulse rounded-full bg-[#2f7dd3]" />
+                        <span className="h-1 w-1 animate-pulse rounded-full bg-[#2f7dd3] [animation-delay:120ms]" />
+                        <span className="h-1 w-1 animate-pulse rounded-full bg-[#2f7dd3] [animation-delay:240ms]" />
+                      </div>
+                    ) : null}
+                  </div>
+                  <p className="mt-0.5 truncate text-sm text-[#667085]">{thinkingSummary}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-0.5">
+              <span className="text-xs font-medium text-[#98a2b3]">
+                {isSending ? formatElapsed(runElapsedSec) : `${displayedTimeline.length} steps`}
+              </span>
+              <span className={`text-sm text-[#98a2b3] transition ${thinkingExpanded ? "rotate-180" : ""}`}>⌄</span>
+            </div>
+          </button>
+
+          <div className={`overflow-hidden transition-all duration-300 ${thinkingExpanded ? "max-h-[340px] opacity-100" : "max-h-0 opacity-0"}`}>
+            <div className="pl-10 pr-1 pb-3">
+              <div className="mb-2 h-px bg-[linear-gradient(90deg,rgba(217,225,235,0)_0%,rgba(217,225,235,0.95)_12%,rgba(217,225,235,0.95)_88%,rgba(217,225,235,0)_100%)]" />
+              <div className="space-y-3">
+              {visibleThinkingSteps.map(({ event, friendly }, index) => {
+                const isLatest = index === visibleThinkingSteps.length - 1;
+                return (
+                  <div className="flex items-start gap-3" key={event.id}>
+                      <div className="relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center text-[11px] font-semibold text-[#526072]">
+                        <span>{iconForThinkingStep(friendly.title)}</span>
+                        {isSending && isLatest ? (
+                          <span className="absolute h-4 w-4 rounded-full border border-[#bfdbfe] animate-ping opacity-50" />
+                        ) : null}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-medium text-[#1f2937]">{friendly.title}</p>
+                          <span className="text-[11px] text-[#98a2b3]">
+                            {new Date(event.createdAt).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-sm leading-6 text-[#667085]">{friendly.detail}</p>
+                      </div>
+                  </div>
+                );
+              })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    );
+  }
+
   function applyPromptSuggestion(value: string) {
     setPrompt(value);
     window.requestAnimationFrame(() => {
@@ -998,8 +1132,8 @@ export default function ChatWorkspacePage() {
       }}
       onNewConversation={handleNewConversation}
     >
-      <div className="h-full lg:grid lg:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="flex min-h-0 flex-col border-b border-[#e2e8f0] lg:border-b-0 lg:border-r">
+      <div className="h-full">
+        <section className="flex min-h-0 h-full flex-col">
             <div
               className={`flex-1 overflow-y-auto px-5 py-5 md:px-6 ${
                 hasConversation ? "space-y-6" : "flex flex-col items-center justify-center"
@@ -1014,7 +1148,7 @@ export default function ChatWorkspacePage() {
                     Describe what you want to buy.
                   </h2>
                   <p className="mt-4 max-w-[500px] text-sm leading-7 text-[#667085] md:text-[15px]">
-                    Include the room, style, budget, and must-have pieces. The agent will search products and build packages while the log runs on the right.
+                    Include the room, style, budget, and must-have pieces. MartGennie will search products, compare options, and build packages for you.
                   </p>
 
                   {renderComposer("hero")}
@@ -1060,45 +1194,60 @@ export default function ChatWorkspacePage() {
                   </div>
                 </div>
               ) : (
-                renderedMessages.map((message) => (
-                  <article
-                    className={`mx-auto w-full max-w-[760px] text-sm leading-8 text-[#111827] md:text-[15px] ${
-                      message.role === "user"
-                        ? "flex justify-end"
-                        : "block"
-                    }`}
-                    key={message.id}
-                    style={{ fontFamily: "'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif" }}
-                  >
-                    {message.role === "user" ? (
-                      <div className="max-w-[72%] rounded-[22px] bg-[#f1f1f1] px-4 py-3 text-[#111827]">
-                        <p>{message.content}</p>
-                      </div>
-                    ) : (
+                <>
+                  {messages.map((message) => (
+                    <article
+                      className={`mx-auto w-full max-w-[760px] text-sm leading-8 text-[#111827] md:text-[15px] ${
+                        message.role === "user" ? "flex justify-end" : "block"
+                      }`}
+                      key={message.id}
+                      style={{ fontFamily: "'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif" }}
+                    >
+                      {message.role === "user" ? (
+                        <div className="max-w-[72%] rounded-[22px] bg-[#f1f1f1] px-4 py-3 text-[#111827]">
+                          <p>{message.content}</p>
+                        </div>
+                      ) : (
+                        <div className="max-w-none text-[#1f2937]">
+                          <p>{message.content}</p>
+                        </div>
+                      )}
+                      {message.role === "assistant" && message.packageSnapshotId ? (
+                        <button
+                          className="mt-4 inline-flex items-center rounded-full border border-[#d6e4f5] bg-white px-3 py-1.5 text-xs font-semibold text-[#1f4f78] transition hover:border-[#bfd4ec] hover:bg-[#eef6ff]"
+                          onClick={() =>
+                            router.push(
+                              `/recommendations?snapshot=${encodeURIComponent(message.packageSnapshotId as string)}`,
+                            )
+                          }
+                          type="button"
+                        >
+                          View packages
+                        </button>
+                      ) : null}
+                    </article>
+                  ))}
+
+                  {renderThinkingBlock()}
+
+                  {isSending ? (
+                    <article
+                      className="mx-auto w-full max-w-[760px] text-sm leading-8 text-[#111827] md:text-[15px]"
+                      style={{ fontFamily: "'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif" }}
+                    >
                       <div className="max-w-none text-[#1f2937]">
-                        <p>
-                          {message.content}
-                          {message.id === "assistant-draft" && isSending ? (
-                            <span className="ml-2 text-xs text-[#98a2b3]">({runElapsedSec}s)</span>
-                          ) : null}
+                        <p className="relative">
+                          {streamText || "Drafting the recommendation and preparing package options..."}
+                          <span className="ml-2 inline-flex items-center gap-1 align-middle">
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#94a3b8]" />
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#94a3b8] [animation-delay:120ms]" />
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#94a3b8] [animation-delay:240ms]" />
+                          </span>
                         </p>
                       </div>
-                    )}
-                    {message.role === "assistant" && message.packageSnapshotId ? (
-                      <button
-                        className="mt-4 inline-flex items-center rounded-full border border-[#d6e4f5] bg-white px-3 py-1.5 text-xs font-semibold text-[#1f4f78] transition hover:border-[#bfd4ec] hover:bg-[#eef6ff]"
-                        onClick={() =>
-                          router.push(
-                            `/recommendations?snapshot=${encodeURIComponent(message.packageSnapshotId as string)}`,
-                          )
-                        }
-                        type="button"
-                      >
-                        View packages
-                      </button>
-                    ) : null}
-                  </article>
-                ))
+                    </article>
+                  ) : null}
+                </>
               )}
             </div>
 
@@ -1113,51 +1262,6 @@ export default function ChatWorkspacePage() {
               </div>
             ) : null}
           </section>
-
-        <aside className="flex min-h-0 flex-col bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)]">
-            <div className="flex items-center justify-between border-b border-[#dce4ee] px-5 py-4 md:px-5">
-            <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-[#8b97a8]">Agent Process</p>
-              <h2 className="mt-1 text-lg font-semibold text-[#101828]">Pipeline Log</h2>
-              <p className="mt-1 text-xs text-[#667085]">
-                Live backend events from parsing, search, and bundle generation.
-              </p>
-            </div>
-            <span
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                isSending
-                  ? "bg-[#dbeafe] text-[#1d4ed8]"
-                  : "bg-[#eaf2f8] text-[#475467]"
-              }`}
-            >
-              {isSending ? "Running" : "Idle"}
-            </span>
-          </div>
-
-            <div className="min-h-0 flex-1 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] px-3 pb-3 pt-3">
-              <div className="h-full space-y-2 overflow-y-auto pr-1">
-                {displayedTimeline.length === 0 ? (
-                  <p className="border border-dashed border-[#dbe3ed] bg-white/70 px-3 py-3 text-xs text-[#667085]">
-                    You will see simple progress updates here after you send a request.
-                  </p>
-                ) : (
-                  displayedTimeline.map(({ event, friendly }) => {
-                    return (
-                      <article className="border border-[#e4eaf1] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-3 py-3 shadow-[0_8px_22px_rgba(148,163,184,0.08)]" key={event.id}>
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-xs font-semibold text-[#1f3b57]">{friendly.title}</p>
-                          <p className="text-[11px] text-[#98a2b3]">
-                            {new Date(event.createdAt).toLocaleTimeString()}
-                          </p>
-                        </div>
-                        <p className="mt-1 text-xs text-[#667085]">{friendly.detail}</p>
-                      </article>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-        </aside>
       </div>
       {showOnboarding ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
