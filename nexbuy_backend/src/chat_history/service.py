@@ -299,6 +299,25 @@ async def load_chat_history(session: AsyncSession, user_id: UUID, project_id: st
     )
 
 
+async def delete_chat_session(
+    session: AsyncSession,
+    *,
+    user_id: UUID,
+    session_id: str,
+) -> None:
+    session_row = await get_chat_session_row(session, user_id, session_id)
+    if session_row is None:
+        raise ValueError("Chat session not found.")
+
+    project_id = session_row.project_id
+    await session.delete(session_row)
+    await session.commit()
+
+    if project_id:
+        await touch_project_activity(session, project_id)
+        await session.commit()
+
+
 async def load_chat_session_dump(
     session: AsyncSession,
     user_id: UUID,

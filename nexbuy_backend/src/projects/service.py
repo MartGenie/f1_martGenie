@@ -3,10 +3,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.projects.schema import ChatProjectCreateIn, ChatProjectItemOut, ChatProjectListOut
+from src.web.chat.models import ChatSessionRecord
 from src.web.projects.models import ChatProjectRecord
 
 
@@ -92,3 +93,20 @@ async def touch_project_activity(session: AsyncSession, project_id: str) -> None
     if record is None:
         return
     record.last_activity_at = _now()
+
+
+async def delete_project(session: AsyncSession, *, user_id: UUID, project_id: str) -> None:
+    record = await get_project(session, user_id, project_id)
+    if record is None:
+        raise ValueError("Project not found.")
+
+    await session.execute(
+        delete(ChatSessionRecord).where(
+            ChatSessionRecord.user_id == user_id,
+            ChatSessionRecord.project_id == project_id,
+        )
+    )
+    await session.delete(record)
+    await session.commit()
+
+    await ensure_default_project(session, user_id)

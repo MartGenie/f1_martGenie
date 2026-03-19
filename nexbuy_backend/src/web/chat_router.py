@@ -17,6 +17,7 @@ from src.chat_history.schema import ChatHistoryListOut
 from src.chat_history.service import (
     append_user_message,
     create_chat_session as create_chat_session_record,
+    delete_chat_session,
     load_chat_history,
     load_chat_session_dump,
     mark_session_failed,
@@ -248,6 +249,18 @@ async def get_chat_history(
     db_session: AsyncSession = Depends(get_async_session),
 ) -> ChatHistoryListOut:
     return await load_chat_history(db_session, user.id, project_id=project_id)
+
+
+@router.delete("/sessions/{session_id}", status_code=204)
+async def remove_session(
+    session_id: str,
+    user: User = Depends(CurrentActiveUser),
+    db_session: AsyncSession = Depends(get_async_session),
+) -> None:
+    try:
+        await delete_chat_session(db_session, user_id=user.id, session_id=session_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/sessions/{session_id}/messages", response_model=SendMessageResponse, status_code=202)

@@ -87,6 +87,17 @@ export async function createProject(payload: ProjectCreateInput): Promise<Projec
   return parseJsonResponse<ProjectItem>(response, "Could not create project.");
 }
 
+export async function deleteProject(projectId: string): Promise<void> {
+  const response = await authenticatedFetch(`${getApiBaseUrl()}/projects/${projectId}`, {
+    method: "DELETE",
+    headers: buildAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    await parseJsonResponse(response, "Could not delete project.");
+  }
+}
+
 async function parseJsonResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
   const contentType = response.headers.get("content-type") ?? "";
   const isJson = contentType.includes("application/json");

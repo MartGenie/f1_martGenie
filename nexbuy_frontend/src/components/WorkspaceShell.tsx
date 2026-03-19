@@ -9,9 +9,10 @@ import {
   saveAuthUserId,
   saveAuthUserEmail,
 } from "@/lib/auth";
-import { fetchChatHistory } from "@/lib/chat-api";
+import { deleteChatSession, fetchChatHistory } from "@/lib/chat-api";
 import {
   createProject,
+  deleteProject,
   fetchProjects,
   readSelectedProjectId,
   readSelectedProjectServerSnapshot,
@@ -43,7 +44,6 @@ type WorkspaceShellProps = {
 type HistoryItem = {
   id: string;
   title: string;
-  time: string;
   preview: string;
   href: string;
 };
@@ -76,7 +76,11 @@ export default function WorkspaceShell({
   const [newProjectSummary, setNewProjectSummary] = useState("");
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [remoteHistoryItems, setRemoteHistoryItems] = useState<HistoryItem[]>([]);
+  const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
+  const [isDeletingProjectId, setIsDeletingProjectId] = useState<string | null>(null);
+  const [isDeletingHistoryId, setIsDeletingHistoryId] = useState<string | null>(null);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const actionMenuRef = useRef<HTMLDivElement | null>(null);
   const authToken = useSyncExternalStore(
     subscribeAuthSnapshot,
     readAuthTokenSnapshot,
@@ -121,7 +125,6 @@ export default function WorkspaceShell({
           sessions.map((session) => ({
             id: session.session_id,
             title: session.title,
-            time: new Date(session.updated_at).toLocaleDateString(),
             preview: session.preview,
             href: `/chat?session=${encodeURIComponent(session.session_id)}`,
           })),
@@ -215,6 +218,21 @@ export default function WorkspaceShell({
     return () => window.removeEventListener("mousedown", handlePointerDown);
   }, [accountMenuOpen]);
 
+  useEffect(() => {
+    if (!openActionMenu) {
+      return;
+    }
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!actionMenuRef.current?.contains(event.target as Node)) {
+        setOpenActionMenu(null);
+      }
+    }
+
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => window.removeEventListener("mousedown", handlePointerDown);
+  }, [openActionMenu]);
+
   function handleNewConversation() {
     if (typeof window !== "undefined") {
       window.sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
@@ -258,6 +276,57 @@ export default function WorkspaceShell({
     }
   }
 
+  async function handleDeleteProject(projectId: string) {
+    try {
+      setIsDeletingProjectId(projectId);
+      setOpenActionMenu(null);
+      await deleteProject(projectId);
+      const items = await fetchProjects();
+      setProjects(items);
+      if (!items.some((item) => item.id === selectedProjectId) && items[0]?.id) {
+        saveSelectedProjectId(items[0].id);
+      }
+      const sessions = await fetchChatHistory();
+      setRemoteHistoryItems(
+        sessions.map((session) => ({
+          id: session.session_id,
+          title: session.title,
+          preview: session.preview,
+          href: `/chat?session=${encodeURIComponent(session.session_id)}`,
+        })),
+      );
+      if (currentPath === "/chat" && currentSessionId) {
+        onNewConversation?.();
+        router.push("/chat");
+      }
+    } finally {
+      setIsDeletingProjectId(null);
+    }
+  }
+
+  async function handleDeleteHistoryItem(sessionId: string) {
+    try {
+      setIsDeletingHistoryId(sessionId);
+      setOpenActionMenu(null);
+      await deleteChatSession(sessionId);
+      const sessions = await fetchChatHistory();
+      setRemoteHistoryItems(
+        sessions.map((session) => ({
+          id: session.session_id,
+          title: session.title,
+          preview: session.preview,
+          href: `/chat?session=${encodeURIComponent(session.session_id)}`,
+        })),
+      );
+      if (currentSessionId === sessionId) {
+        onNewConversation?.();
+        router.push("/chat");
+      }
+    } finally {
+      setIsDeletingHistoryId(null);
+    }
+  }
+
   const avatarLabel = useMemo(() => {
     const base = authUserEmail.trim().slice(0, 2);
     return base.length > 0 ? base.toUpperCase() : "NX";
@@ -298,20 +367,22 @@ export default function WorkspaceShell({
                   {displayProjects.length > 0 ? (
                     <div className="max-h-[220px] space-y-1 overflow-y-auto pr-1">
                       {displayProjects.map((project) => (
-                        <button
-                          className={`block w-full rounded-[18px] px-3 py-3 text-left transition ${
+                        <div
+                          className={`group relative rounded-[18px] transition ${
                             selectedProjectId === project.id
                               ? "bg-[#edf5ff] text-[#123b5f]"
                               : "text-[#526173] hover:bg-[#f4f7fb]"
                           }`}
                           key={project.id}
-                          onClick={() => {
-                            saveSelectedProjectId(project.id);
-                            router.push("/chat");
-                          }}
-                          type="button"
                         >
-                          <div className="flex items-start justify-between gap-3">
+                          <button
+                            className="block w-full px-3 py-3 pr-12 text-left"
+                            onClick={() => {
+                              saveSelectedProjectId(project.id);
+                              router.push("/chat");
+                            }}
+                            type="button"
+                          >
                             <div className="min-w-0">
                               <p className="truncate text-sm font-medium">{project.title}</p>
                               {project.summary ? (
@@ -320,11 +391,38 @@ export default function WorkspaceShell({
                                 </p>
                               ) : null}
                             </div>
-                            <span className="shrink-0 text-[11px] text-[#98a2b3]">
-                              {new Date(project.updated_at).toLocaleDateString()}
-                            </span>
+                          </button>
+                          <div
+                            className="absolute right-2 top-2"
+                            ref={openActionMenu === `project:${project.id}` ? actionMenuRef : null}
+                          >
+                            <button
+                              aria-label="Open project actions"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#98a2b3] opacity-0 transition hover:bg-[#e9eff7] hover:text-[#344054] group-hover:opacity-100"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setOpenActionMenu((current) =>
+                                  current === `project:${project.id}` ? null : `project:${project.id}`,
+                                );
+                              }}
+                              type="button"
+                            >
+                              <span className="text-lg leading-none">⋯</span>
+                            </button>
+                            {openActionMenu === `project:${project.id}` ? (
+                              <div className="absolute right-0 top-9 z-20 w-[120px] overflow-hidden rounded-[14px] border border-[#dbe3ed] bg-white py-1 shadow-[0_18px_32px_rgba(15,23,42,0.12)]">
+                                <button
+                                  className="block w-full px-3 py-2 text-left text-sm font-medium text-[#b42318] transition hover:bg-[#fff1f1]"
+                                  disabled={isDeletingProjectId === project.id}
+                                  onClick={() => void handleDeleteProject(project.id)}
+                                  type="button"
+                                >
+                                  {isDeletingProjectId === project.id ? "Deleting..." : "Delete"}
+                                </button>
+                              </div>
+                            ) : null}
                           </div>
-                        </button>
+                        </div>
                       ))}
                     </div>
                   ) : (
@@ -372,22 +470,56 @@ export default function WorkspaceShell({
               {historyItems.length > 0 ? (
                 <div className="space-y-1">
                   {historyItems.map((item) => (
-                    <Link
-                      className={`block w-full rounded-[18px] px-3 py-3 text-left transition ${
+                    <div
+                      className={`group relative rounded-[18px] transition ${
                         activeHistoryId === item.id
                           ? "bg-[#edf5ff] text-[#123b5f]"
                           : "text-[#526173] hover:bg-[#f4f7fb]"
                       }`}
-                      href={item.href}
                       key={item.id}
-                      onClick={() => setSelectedHistoryId(item.id)}
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="truncate text-sm font-medium">{item.title}</p>
-                        <span className="shrink-0 text-[11px] text-[#98a2b3]">{item.time}</span>
+                      <Link
+                        className="block w-full px-3 py-3 pr-12 text-left"
+                        href={item.href}
+                        onClick={() => setSelectedHistoryId(item.id)}
+                      >
+                        <div>
+                          <p className="truncate text-sm font-medium">{item.title}</p>
+                          <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#7b8798]">{item.preview}</p>
+                        </div>
+                      </Link>
+                      <div
+                        className="absolute right-2 top-2"
+                        ref={openActionMenu === `history:${item.id}` ? actionMenuRef : null}
+                      >
+                        <button
+                          aria-label="Open chat actions"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#98a2b3] opacity-0 transition hover:bg-[#e9eff7] hover:text-[#344054] group-hover:opacity-100"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setOpenActionMenu((current) =>
+                              current === `history:${item.id}` ? null : `history:${item.id}`,
+                            );
+                          }}
+                          type="button"
+                        >
+                          <span className="text-lg leading-none">⋯</span>
+                        </button>
+                        {openActionMenu === `history:${item.id}` ? (
+                          <div className="absolute right-0 top-9 z-20 w-[120px] overflow-hidden rounded-[14px] border border-[#dbe3ed] bg-white py-1 shadow-[0_18px_32px_rgba(15,23,42,0.12)]">
+                            <button
+                              className="block w-full px-3 py-2 text-left text-sm font-medium text-[#b42318] transition hover:bg-[#fff1f1]"
+                              disabled={isDeletingHistoryId === item.id}
+                              onClick={() => void handleDeleteHistoryItem(item.id)}
+                              type="button"
+                            >
+                              {isDeletingHistoryId === item.id ? "Deleting..." : "Delete"}
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
-                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#7b8798]">{item.preview}</p>
-                    </Link>
+                    </div>
                   ))}
                 </div>
               ) : (

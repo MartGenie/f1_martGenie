@@ -85,6 +85,17 @@ export async function fetchChatSessionDump(sessionId: string): Promise<SessionDu
   return parseJsonResponse<SessionDumpResponse>(response, "Could not load chat session.");
 }
 
+export async function deleteChatSession(sessionId: string): Promise<void> {
+  const response = await authenticatedFetch(`${getApiBaseUrl()}/chat/sessions/${sessionId}`, {
+    method: "DELETE",
+    headers: buildAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    await parseJsonResponse(response, "Could not delete chat session.");
+  }
+}
+
 export async function sendChatMessage(
   sessionId: string,
   content: string,
