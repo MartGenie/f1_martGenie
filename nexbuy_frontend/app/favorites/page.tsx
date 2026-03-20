@@ -16,17 +16,6 @@ import { clearCurrentOrder, setOrderCheckout } from "@/lib/order-store";
 import AuthModal from "@/src/components/AuthModal";
 import WorkspaceShell from "@/src/components/WorkspaceShell";
 
-function getSpecEntries(specs: Record<string, string> | null | undefined) {
-  if (!specs) {
-    return [];
-  }
-
-  return Object.entries(specs)
-    .map(([label, value]) => [label.trim(), String(value ?? "").trim()] as const)
-    .filter(([, value]) => value.length > 0)
-    .slice(0, 6);
-}
-
 export default function FavoritesPage() {
   const router = useRouter();
   const [authOpen, setAuthOpen] = useState(false);
@@ -267,10 +256,10 @@ export default function FavoritesPage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="mt-6 grid gap-5 lg:grid-cols-2">
+                  <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     {favoriteProducts.map((item) => (
                       <article
-                        className="overflow-hidden rounded-[28px] border border-[#dde5ef] bg-white shadow-[0_16px_36px_rgba(148,163,184,0.12)]"
+                        className="overflow-hidden rounded-[28px] border border-[#dbe5f0] bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(244,248,252,0.96)_100%)] shadow-[0_18px_45px_rgba(148,163,184,0.14)]"
                         key={item.sku_id_default}
                       >
                         <Link className="block" href={`/product/${encodeURIComponent(item.sku_id_default)}?from=favorites`}>
@@ -278,46 +267,21 @@ export default function FavoritesPage() {
                             // eslint-disable-next-line @next/next/no-img-element
                             <img alt={item.title} className="h-56 w-full object-cover" src={item.image_url} />
                           ) : (
-                            <div className="h-56 bg-[linear-gradient(135deg,#dbeafe,#f8fafc)]" />
+                            <div className="h-56 bg-[linear-gradient(180deg,#edf3f9_0%,#e2e8f0_100%)]" />
                           )}
-                          <div className="space-y-4 p-5">
-                            <div>
-                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8b97a8]">
-                                {item.category_label || item.source_page || "Saved item"}
-                              </p>
-                              <h2 className="mt-2 text-xl font-semibold leading-8 tracking-[-0.03em] text-[#101828]">
-                                {item.title}
-                              </h2>
-                              {item.description_text ? (
-                                <p className="mt-3 text-sm leading-7 text-[#667085]">{item.description_text}</p>
-                              ) : null}
-                            </div>
-                            {item.recommendation_reason ? (
-                              <div className="rounded-[20px] border border-[#e8edf4] bg-[#f8fbff] px-4 py-3 text-sm leading-6 text-[#475467]">
-                                {item.recommendation_reason}
-                              </div>
-                            ) : null}
-                            {getSpecEntries(item.specs).length > 0 ? (
-                              <div className="flex flex-wrap gap-2">
-                                {getSpecEntries(item.specs).map(([label, value]) => (
-                                  <span
-                                    className="rounded-full border border-[#d9e4f2] bg-white px-3 py-1.5 text-sm text-[#344054]"
-                                    key={`${item.sku_id_default}-${label}`}
-                                  >
-                                    {label}: {value}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : null}
-                          </div>
-                        </Link>
-                        <div className="flex items-center justify-between gap-3 border-t border-[#e8edf4] px-5 py-4">
-                          <div>
-                            <p className="text-xs uppercase tracking-[0.16em] text-[#8b97a8]">Price</p>
-                            <p className="mt-1 text-2xl font-black text-[#101828]">
+                          <div className="flex flex-col p-5">
+                            <h2 className="line-clamp-2 min-h-[3.5rem] text-[17px] font-black leading-7 tracking-[-0.03em] text-[#0f172a]">
+                              {item.title}
+                            </h2>
+                            <p className="mt-3 line-clamp-3 min-h-[5.25rem] text-sm leading-7 text-[#475467]">
+                              {item.recommendation_reason || item.description_text || "Saved from your likes for later review."}
+                            </p>
+                            <p className="mt-auto pt-5 text-xl font-black tracking-[-0.03em] text-[#0f172a]">
                               {typeof item.sale_price === "number" ? `$${item.sale_price.toLocaleString()}` : "--"}
                             </p>
                           </div>
+                        </Link>
+                        <div className="flex items-center gap-3 border-t border-[#e8edf4] px-5 py-4">
                           <div className="flex items-center gap-3">
                             <button
                               className="inline-flex h-11 items-center justify-center rounded-full border border-[#d5dde8] bg-white px-4 text-sm font-semibold text-[#344054] transition hover:bg-[#f8fafc]"
