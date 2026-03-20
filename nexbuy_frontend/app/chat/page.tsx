@@ -2084,10 +2084,14 @@ export default function ChatWorkspacePage() {
             ) : null}
           </div>
 
-          {latestPackageSnapshotId && isResultsPanelOpen ? (
+          {latestPackageSnapshotId ? (
             <>
               <div
-                className="hidden w-1.5 shrink-0 cursor-col-resize bg-transparent hover:bg-[#dbe5ef] lg:block"
+                className={`hidden shrink-0 cursor-col-resize bg-transparent transition-[width,opacity] duration-300 ease-out lg:block ${
+                  isResultsPanelOpen
+                    ? "w-1.5 opacity-100 hover:bg-[#dbe5ef]"
+                    : "w-0 opacity-0 pointer-events-none"
+                }`}
                 onMouseDown={() => {
                   isResizingResultsPanelRef.current = true;
                   document.body.style.cursor = "col-resize";
@@ -2096,11 +2100,17 @@ export default function ChatWorkspacePage() {
                 role="separator"
               />
               <aside
-                className="relative hidden shrink-0 overflow-visible lg:block"
-                style={{ width: `${resultsPanelWidth}px` }}
+                className={`relative hidden shrink-0 overflow-visible transition-[width,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:block ${
+                  isResultsPanelOpen
+                    ? "translate-x-0 opacity-100"
+                    : "pointer-events-none translate-x-5 opacity-0"
+                }`}
+                style={{ width: `${isResultsPanelOpen ? resultsPanelWidth : 0}px` }}
               >
                 <button
-                  className="absolute -left-5 top-1/2 z-20 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#d8e2ee] bg-white/92 text-[#98a2b3] shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur transition hover:text-[#344054]"
+                  className={`absolute -left-5 top-1/2 z-20 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#d8e2ee] bg-white/92 text-[#98a2b3] shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur transition-all duration-300 hover:text-[#344054] ${
+                    isResultsPanelOpen ? "scale-100 opacity-100" : "scale-95 opacity-0 pointer-events-none"
+                  }`}
                   onClick={() => setIsResultsPanelOpen(false)}
                   type="button"
                 >
@@ -2114,7 +2124,13 @@ export default function ChatWorkspacePage() {
                     />
                   </svg>
                 </button>
-                {renderResultsPanel(latestPackageSnapshotId)}
+                <div
+                  className={`h-full transition-opacity duration-200 ${
+                    isResultsPanelOpen ? "opacity-100 delay-75" : "opacity-0"
+                  }`}
+                >
+                  {renderResultsPanel(latestPackageSnapshotId)}
+                </div>
               </aside>
             </>
           ) : null}
