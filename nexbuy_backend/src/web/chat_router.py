@@ -679,15 +679,13 @@ async def stream_session(session_id: str, task_id: str = Query(...)) -> Streamin
                 yield _sse({"type": "plan_ready", "plans": plans, "snapshotId": package_snapshot_id})
                 if should_bundle:
                     assistant_text = (
-                        f"I found {len(query_result.products)} products matching your request "
-                        f"and built {len(plans)} bundle option(s). "
-                        "They are displayed in the results section below."
+                        "I put together a few matched options for you below. "
+                        "Expand each one to compare the items, pricing, and next steps."
                     )
                 else:
                     assistant_text = (
-                        f"I found {len(query_result.products)} products matching your request "
-                        f"and selected {len(plans)} direct product recommendation(s). "
-                        "They are displayed in the results section below."
+                        "I pulled together a few product picks for you below. "
+                        "Open any card to view details, save it, or share it."
                     )
             else:
                 assistant_text = (
