@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   clearAccessToken,
   fetchCurrentUser,
@@ -113,7 +113,7 @@ function buildStoredRunTranscript(stored: ReturnType<typeof readNegotiationRuns>
       });
 }
 
-export default function NegotiationPage() {
+function NegotiationPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -1027,5 +1027,13 @@ export default function NegotiationPage() {
         open={authOpen}
       />
     </>
+  );
+}
+
+export default function NegotiationPage() {
+  return (
+    <Suspense fallback={null}>
+      <NegotiationPageContent />
+    </Suspense>
   );
 }
