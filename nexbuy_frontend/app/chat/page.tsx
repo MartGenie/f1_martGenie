@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   clearAccessToken,
   fetchCurrentUser,
@@ -311,7 +311,7 @@ function buildSavingsMeta(originalPrice: number, currentPrice: number) {
 }
 
 
-export default function ChatWorkspacePage() {
+function ChatWorkspacePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedSessionId = searchParams.get("session");
@@ -2270,5 +2270,13 @@ export default function ChatWorkspacePage() {
         open={authOpen}
       />
     </WorkspaceShell>
+  );
+}
+
+export default function ChatWorkspacePage() {
+  return (
+    <Suspense fallback={null}>
+      <ChatWorkspacePageContent />
+    </Suspense>
   );
 }
