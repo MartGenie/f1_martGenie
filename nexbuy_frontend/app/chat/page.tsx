@@ -1141,12 +1141,6 @@ function ChatWorkspacePageContent() {
                 const isLatest = index === 0;
                 return (
                   <div className="flex items-start gap-3" key={event.id}>
-                      <div className="relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center text-[11px] font-semibold text-[#526072]">
-                        <span>{iconForThinkingStep(friendly.title)}</span>
-                        {isSending && isLatest ? (
-                          <span className="absolute h-4 w-4 rounded-full border border-[#bfdbfe] animate-ping opacity-50" />
-                        ) : null}
-                      </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-sm font-medium text-[#1f2937]">{friendly.title}</p>
