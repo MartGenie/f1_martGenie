@@ -193,11 +193,12 @@ export default function AuthForm({ onSuccess }: Props) {
       </button>
 
       <button
-        className="mt-3 flex h-[52px] w-full items-center justify-center gap-3 rounded-2xl border border-dashed border-[#c9d3df] bg-[#f8fafc] text-lg font-semibold text-[#101828] shadow-[0_10px_24px_rgba(148,163,184,0.08)] transition hover:border-[#b7c4d3] hover:bg-white disabled:opacity-60"
+        className="mt-3 flex h-[52px] w-full items-center justify-center gap-3 rounded-2xl border border-[#d7dee8] bg-white text-lg font-semibold text-[#101828] shadow-[0_10px_24px_rgba(148,163,184,0.1)] transition hover:border-[#c9d3df] hover:bg-[#fbfcfd] disabled:opacity-60"
         disabled={isBusy}
         onClick={handleGuest}
         type="button"
       >
+        <Image alt="Guest" className="-ml-5" height={20} src="/icons8-游客-48.png" width={20} />
         Continue as Guest
       </button>
 
