@@ -46,25 +46,11 @@ export function getApiBaseUrl() {
   return configuredBaseUrl.replace(/\/+$/, "");
 }
 
-function isLocalHost(hostname: string | null | undefined) {
-  return hostname === "localhost" || hostname === "127.0.0.1";
-}
-
 function buildBackendOriginConfigError(configuredOrigin: string | undefined) {
   if (!configuredOrigin) {
     return new Error(
       "Missing NEXT_PUBLIC_BACKEND_ORIGIN. Set it to the deployed backend origin before building the frontend.",
     );
-  }
-
-  if (typeof window !== "undefined") {
-    const currentHost = window.location.hostname;
-    const parsedOrigin = new URL(configuredOrigin);
-    if (!isLocalHost(currentHost) && isLocalHost(parsedOrigin.hostname)) {
-      return new Error(
-        `Invalid NEXT_PUBLIC_BACKEND_ORIGIN: ${configuredOrigin}. A deployed frontend cannot point to localhost or 127.0.0.1.`,
-      );
-    }
   }
 
   return null;
