@@ -198,7 +198,7 @@ export default function AuthForm({ onSuccess }: Props) {
         onClick={handleGuest}
         type="button"
       >
-        <Image alt="Guest" className="-ml-5" height={20} src="/icons8-游客-48.png" width={20} />
+        <Image alt="Guest" className="-ml-5" height={20} src="/guest.png" width={20} />
         Continue as Guest
       </button>
 
